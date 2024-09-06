@@ -54,7 +54,7 @@ def run_test(b, a, n_bh, n_ah, N, title):
     print("--------------------------------------------------------------")
     print("Steiglitz McBride:")
 
-    breakpoint()
+    maybe_stop()
 
     bh, ah = fast_steiglitz_mcbride_filter_design(
         H, U, n_bh, n_ah,

@@ -17,6 +17,9 @@ from scipy.signal import freqz
 from filter_utilities_jos import check_roots_stability
 from filter_plot_utilities_jos import zplane
 
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
+
 def invfreqz(
     H: np.ndarray,
     n_zeros: int,
@@ -29,7 +32,7 @@ def invfreqz(
 ) -> tuple[np.ndarray, np.ndarray]:
 
     if n_iter == 0:
-        return fast_equation_error_filter_design(H, n_zeros, n_poles, U, weight, omega)
+        return fast_equation_error_filter_design(H, n_zeros, n_poles, U, omega)
     else:
         return fast_steiglitz_mcbride_filter_design(
             H, U, n_zeros, n_poles,
@@ -167,8 +170,6 @@ def fast_equation_error_filter_design(
         -pi ({-np.pi}) for complex-filter design
         """)
 
-    # breakpoint()
-
     if U is None:  # Make it effectively all 1s (no frequency-weighting == "impulse")
         Y = H
         Y = append_flip_conjugate(Y)
@@ -220,7 +221,6 @@ def clipped_real_array_inverse(A, zero_clip=1e-7):
 
 def invert_unstable_roots(A):
     print(f"invert_unstable_roots: input is {A}")
-    # breakpoint()
     roots = np.roots(A)
     unstable_mask = np.abs(roots) > 1
     if not np.any(unstable_mask):
@@ -279,13 +279,17 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
     H_local = H.copy()
     U_local = U.copy()
 
-    breakpoint()
-
     while True:
         new_b, new_a = fast_equation_error_filter_design(
             H_local, n_zeros, n_poles, U=U_local, omega = w )
         if stabilize:
-            new_a = invert_unstable_roots(new_a)
+            new_a,_,_ = invert_unstable_roots(new_a)
+
+        print("Check args to freqz:")
+        # breakpoint()
+        pp.pprint(new_b)
+        pp.pprint(new_a)
+
         freqz(new_b, new_a)
         zplane(new_b, new_a)
         norm_change = norm(new_a - current_a) + norm(new_b - current_b)
