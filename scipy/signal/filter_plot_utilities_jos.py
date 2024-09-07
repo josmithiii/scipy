@@ -19,7 +19,8 @@ def plot_spectrum_overlay(spec1, spec2, w, title, lab1, lab2):
     plt.plot(w, spec2_db, 'r--', label=lab2)
     plt.title(f'{title} - Magnitude Response')
     plt.ylabel('Magnitude [dB]')
-    plt.ylim(min_db, 5)  # Set y-axis limits
+    max_db = np.max(np.maximum(spec1_db, spec2_db))
+    plt.ylim(min_db, max_db)  # Set y-axis limits
     plt.legend()
     plt.grid(True)
 

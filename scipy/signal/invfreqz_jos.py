@@ -34,7 +34,7 @@ def invfreqz(
         return fast_steiglitz_mcbride_filter_design(
             H, U, n_zeros, n_poles,
             max_iterations=n_iter, tol_iteration_change=tolr,
-            zero_clip=1e-7, stabilize=True)
+            zero_clip=1e-7, stabilize=True, initial_learning_rate=0.1 )
 
 
 def toeplitz_circulant_window(x, n_window):
@@ -231,9 +231,33 @@ def invert_unstable_roots(A):
     return A_stable, roots, False  # Some roots were unstable and inverted
 
 
+def exp_window(A, r):
+    """
+    Apply pointwise exponential window [1, r, r^2, ...]
+    to the elements of 1D numpy array A.
+    
+    Parameters:
+    A (numpy.ndarray): 1D input array
+    r (float): Base of the exponential window
+    
+    Returns:
+    numpy.ndarray: Array A with exponential window applied
+    """
+    # Check if A is 1D
+    if A.ndim != 1:
+        raise ValueError("Input array A must be 1-dimensional")
+    
+    # Create the exponential window
+    window = r ** np.arange(len(A))
+    
+    # Apply the window to A
+    return A * window    
+
+
 def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=0,
                                          tol_iteration_change=1e-7,
-                                         zero_clip=1e-7, stabilize=True):
+                                         zero_clip=1e-7, stabilize=True,
+                                         initial_learning_rate=1):
     """Frequency-domain Steiglitz-McBride algorithm.
 
     The Steiglitz-McBride algorithm converts an equation-error filter
@@ -254,6 +278,8 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
                                   at which to halt Steiglitz-McBride iterations.
     stabilize (bool): When true, reflect any unstable poles
                       inside the unit circle if they go unstable.
+    initial_learning_rate (float): learning rate climbs from here to 1
+                      over max_iterations.
 
     Returns:
     b (array): Numerator coefficients of the designed filter
@@ -278,6 +304,9 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
     # We are going to modify these arrays:
     H_local = H.copy()
     U_local = U.copy()
+
+    learning_rate = initial_learning_rate
+    delta_learning_rate = (1.0 - initial_learning_rate) / max_iterations
 
     while True:
 
@@ -311,8 +340,11 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
         current_a = new_a
         current_b = new_b
         iterations += 1
-        wA, A = freqz(current_a, worN=N)
-        Ai = clipped_real_array_inverse(A, zero_clip)
+        # wA, A = freqz(current_a, worN=N)
+        # Ai = clipped_real_array_inverse(A, zero_clip)
+        wA, Ai = freqz(1, exp_window(current_a, learning_rate), worN=N) # no zero_clip
+        learning_rate += delta_learning_rate
+        A = np.reciprocal(Ai)
         plot_spectrum_overlay(A,Ai,wA,"A and 1/A clipped", "A", "1/A")
         H_local = H_local * Ai
         U_local = U_local * Ai
@@ -324,8 +356,8 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
 if __name__ == "__main__":
     from scipy.signal import freqz
 
-    import pdb
-    pdb.set_trace()
+    # import pdb
+    # pdb.set_trace()
 
     N = 1024 # power of 2 preferred
     title = "Pathological test example for regression testing only"
@@ -361,7 +393,8 @@ if __name__ == "__main__":
     print("Steiglitz McBride:")
     bh, ah = fast_steiglitz_mcbride_filter_design(H, U, n_b, n_a,
                                                   max_iterations=5,
-                                                  tol_iteration_change=1e-12)
+                                                  tol_iteration_change=1e-12,
+                                                  initial_learning_rate=0.1 )
     print(f"\n{title}:")
     print("Original coefficients:")
     print(f"b = {b}")
