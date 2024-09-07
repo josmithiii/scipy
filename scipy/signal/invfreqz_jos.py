@@ -15,10 +15,7 @@ import numpy as np
 from scipy.linalg import toeplitz, solve, norm
 from scipy.signal import freqz
 from filter_utilities_jos import check_roots_stability
-from filter_plot_utilities_jos import zplane
-
-import pprint
-pp = pprint.PrettyPrinter(indent=4)
+from filter_plot_utilities_jos import zplane, plot_spectrum_overlay
 
 def invfreqz(
     H: np.ndarray,
@@ -213,11 +210,13 @@ def clipped_magnitude_array_inverse(A, zero_clip=1e-7):
     A_array = np.asarray(A)
     return np.reciprocal(np.maximum(zero_clip, A_array))
 
+
 def clipped_real_array_inverse(A, zero_clip=1e-7):
     A_array = np.asarray(A)
     magnitude = np.abs(A_array)
     clipped_magnitude = np.maximum(zero_clip, magnitude)
     return np.sign(A_array) / clipped_magnitude
+
 
 def invert_unstable_roots(A):
     print(f"invert_unstable_roots: input is {A}")
@@ -230,6 +229,7 @@ def invert_unstable_roots(A):
     A_stable = np.poly(roots) # reconstruct the polynomial coefficients
     A_stable = check_real(A_stable)
     return A_stable, roots, False  # Some roots were unstable and inverted
+
 
 def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=0,
                                          tol_iteration_change=1e-7,
@@ -280,15 +280,20 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
     U_local = U.copy()
 
     while True:
+
+        print(f"\n------- iteration {iterations} -----------")
+
+        # breakpoint()
+
         new_b, new_a = fast_equation_error_filter_design(
             H_local, n_zeros, n_poles, U=U_local, omega = w )
+
+        print(f"{new_b = }")
+        print(f"{new_a = }")
+
         if stabilize:
             new_a,_,_ = invert_unstable_roots(new_a)
-
-        print("Check args to freqz:")
-        # breakpoint()
-        pp.pprint(new_b)
-        pp.pprint(new_a)
+            print(f"{new_a=}")
 
         freqz(new_b, new_a)
         zplane(new_b, new_a)
@@ -308,10 +313,12 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
         iterations += 1
         wA, A = freqz(current_a, worN=N)
         Ai = clipped_real_array_inverse(A, zero_clip)
+        plot_spectrum_overlay(A,Ai,wA,"A and 1/A clipped", "A", "1/A")
         H_local = H_local * Ai
         U_local = U_local * Ai
 
     return new_b, new_a
+
 
 # Example usage:
 if __name__ == "__main__":
@@ -353,7 +360,7 @@ if __name__ == "__main__":
     print("--------------------------------------------------------------")
     print("Steiglitz McBride:")
     bh, ah = fast_steiglitz_mcbride_filter_design(H, U, n_b, n_a,
-                                                  max_iterations=30,
+                                                  max_iterations=5,
                                                   tol_iteration_change=1e-12)
     print(f"\n{title}:")
     print("Original coefficients:")
