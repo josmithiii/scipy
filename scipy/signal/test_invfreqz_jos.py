@@ -1,3 +1,20 @@
+"""
+Module/script name: test_invfreqz_jos.py
+Temporary test file for invfreqz proposal development.
+Author: Julius Smith
+Date: Started 9/03/24
+Usage:
+    
+Dependencies:
+    - sys
+    - os
+    - scipy.signal
+    - filter_test_utilities_jos
+Additional notes:
+    Intended not to be included in the final scipy squash-merge,
+    but rather adapted into scipy unit tests which I've not yet learned about.
+"""
+
 import sys
 import os
 

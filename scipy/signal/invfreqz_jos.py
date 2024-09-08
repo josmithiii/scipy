@@ -1,12 +1,22 @@
-"""Fast frequency-domain equation-error method for digital filter design
+"""
+Module/script name: invfreqz_jos.py
+Temporary test file for invfreqz proposal development.
+Author: Julius Smith
+Date: Started 9/03/24
+    
+Dependencies: See import and from below
+Additional notes:
+    Intended not to be included in the final scipy squash-merge,
+    but rather absorbed only in final form into ./_filter_design.py
 
-Started 9/03/24 by pasting the LaTeX for
+Background:
+    Fast frequency-domain equation-error method for digital filter design
+
+Created initially by pasting the LaTeX for
 https://ccrma.stanford.edu/~jos/filters/FFT_Based_Equation_Error_Method.html
 into Claude Sonnet 3.5, asking for a translation to Python, and
 debugging the result on a number of simple tests.
-Comments also improved and extended.
-
-Maybe add this to scipy/signal/_filter_design.py
+The comments were also improved and extended.
 
 @author: josmithiii@github
 
