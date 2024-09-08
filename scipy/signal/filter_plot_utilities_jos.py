@@ -1,6 +1,67 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import freqz
+from scipy.linalg import norm
+
+
+def plot_bode(w, H, title=None, save_path=None, display=True):
+    # Convert frequency to Hz
+    f = w / (2 * np.pi)
+    
+    # Calculate magnitude in dB
+    db = 20 * np.log10(np.abs(H))
+    
+    # Create the Bode plot
+    plt.figure(figsize=(10, 6))
+    plt.semilogx(f, db)
+    # plt.plot(f, db)
+    plt.grid(True)
+    plt.xlabel('Frequency [Hz]')
+    plt.ylabel('Magnitude [dB]')
+    if title is None:
+        title = "Bode Plot"
+    plt.title(title)
+    plt.axhline(-3, color='green', linestyle=':', label='-3 dB Point')
+    plt.legend()
+    if save_path:
+        plt.savefig(save_path, format='ps', dpi=300, bbox_inches='tight')
+        print(f"Plot saved as {save_path}")
+    if display:
+        plt.show()
+    else:
+        plt.close()
+
+
+def plot_bode_filter_responses(filter_responses, labels, cutoff,
+                               save_path=None, display=True):
+    plt.figure(figsize=(12, 8))
+    
+    for (w, h), label in zip(filter_responses, labels):
+        db = 20 * np.log10(np.abs(h))
+        plt.semilogx(w / (2 * np.pi), db, label=label)
+    
+    plt.grid(True, which="both", ls="-", alpha=0.5)
+    plt.xlabel('Frequency [Hz]')
+    plt.ylabel('Magnitude [dB]')
+    plt.title('Bode Plot Comparison of Filters')
+    plt.axvline(cutoff, color='red', linestyle='--', label='Cutoff Frequency')
+    plt.axhline(-3, color='green', linestyle=':', label='-3 dB Point')
+    
+    plt.ylim(-80, 5)
+    plt.xlim(0.1 * cutoff, 10 * cutoff)
+    
+    plt.legend()
+    plt.show()
+
+    if save_path:
+        plt.savefig(save_path, format='ps', dpi=300, bbox_inches='tight')
+        print(f"Plot saved as {save_path}")
+    
+    if display:
+        plt.show()
+    else:
+        plt.close()
+
 
 def plot_spectrum_overlay(spec1, spec2, w, title, lab1, lab2):
     """Plot overlay of two spectra."""
@@ -44,6 +105,9 @@ def plot_frequency_response_fit(b_orig, a_orig, b_est, a_est, w, title):
     """Plot frequency-response fit of original and estimated filters."""
     wo, h_orig = freqz(b_orig, a_orig, worN=w)
     we, h_est = freqz(b_est, a_est, worN=w)
+
+    norm_of_difference = norm(h_orig - h_est) / norm(h_orig)
+
     if (not np.allclose(w, wo, atol=1e-12)):
         print("*** plot_frequency_response_fit: freqz changed original axis")
     if (not np.allclose(w, we, atol=1e-12)):
@@ -83,9 +147,20 @@ def plot_frequency_response_fit(b_orig, a_orig, b_est, a_est, w, title):
     plt.grid(True)
     plt.tight_layout()
 
+    return norm_of_difference
+
 
 def zplane(b, a):
-    """Plot the complex z-plane given a transfer function."""
+    """
+    Plot the complex z-plane given a transfer function.
+
+    # Example usage
+    b = [1, -0.5, 0.25]  # Numerator coefficients
+    a = [1, -0.7, 0.1]   # Denominator coefficients
+
+    zplane(b, a)
+
+    """
     
     # Get the poles and zeros
     p = np.roots(a)
@@ -123,9 +198,3 @@ def zplane(b, a):
     
     # Show the plot
     plt.show()
-
-# Example usage
-b = [1, -0.5, 0.25]  # Numerator coefficients
-a = [1, -0.7, 0.1]   # Denominator coefficients
-
-zplane(b, a)

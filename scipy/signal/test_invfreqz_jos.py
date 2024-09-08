@@ -1,178 +1,88 @@
-import numpy as np
-# from scipy import signal
-from scipy.signal import freqz, butter, cheby1
-from scipy.linalg import norm
-import matplotlib.pyplot as plt
-from invfreqz_jos import (fast_equation_error_filter_design,
-                          fast_steiglitz_mcbride_filter_design,
-                          invert_unstable_roots)  # ./invfreqz_jos.py
-from filter_plot_utilities_jos import plot_frequency_response_fit # , zplane
+import sys
+import os
 
-import pprint
-pp = pprint.PrettyPrinter(indent=4)
+# from scipy import signal
+from scipy.signal import butter, cheby1
+
+from filter_test_utilities_jos import test_invfreqz
+            # , test_eqnerr, test_steiglitz_mcbride, test_prony, test_pade_prony
 
 # pytest --cache-clear
 
 # import pdb
 # pdb.set_trace()
 
-def maybe_stop():
-    #breakpoint() # uncomment to stop
-    pass
+if len(sys.argv) == 2:
+    try:
+        test_num = int(sys.argv[1])
+        print(f"Test {test_num}:")
+    except ValueError:
+        print("Please provide a valid integer n = test number, or 0 to run all tests")
+        exit()
+else:
+    test_num = 0
+        
+total_error = 0
 
-def run_test(b, a, n_bh, n_ah, N, title):
-    #orig: w = np.logspace(-3, np.log10(np.pi), N)
-    w = np.linspace(0, np.pi, int(N+1))
-    w2,H = freqz(b, a, worN=w)
-    if (not np.allclose(w,w2)):
-        print("*** freqz is not computing frequencies as expected")
+if test_num == 1 or test_num == 0:
+    order = 1
+    n_freqs = 8
+    b_butter_1, a_butter_1 = butter(order, 0.25, btype='low', analog=False)
+    label = f"Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
+    total_error += test_invfreqz(b_butter_1, a_butter_1, order, order, n_freqs, label)
 
-    if len(H) != N+1:
-        print(f"*** freq response length is {len(H)} when we expected length {N+1}")
-        exit
+if test_num == 2 or test_num == 0:
+    order = 2
+    n_freqs = 16
+    b_butter_2, a_butter_2 = butter(order, 0.25, btype='low', analog=False)
+    label_complete = f"Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
+    test_invfreqz(b_butter_2, a_butter_2, order, order, n_freqs, label_complete)
+    order_reduced = order - 1
+    label_reduced = f"""Reduced-Order Butterworth lowpass,
+                        order {order_reduced}, n_freqs {n_freqs}"""
+    total_error += test_invfreqz(b_butter_2, a_butter_2, order_reduced, order_reduced,
+                                 n_freqs, label_reduced)
 
-    U = np.ones_like(H)
-    maybe_stop()
-    bh, ah = fast_equation_error_filter_design(H, n_bh, n_ah, U=U )
-    if not isinstance(bh, np.ndarray) or not isinstance(ah, np.ndarray):
-        print("*** fast_equation_error_filter_design aborted")
-        return
+if test_num == 3 or test_num == 0:
+    order = 3
+    n_freqs = 16
+    b_butter_3, a_butter_3 = butter(order, 0.25, btype='low', analog=False)
+    label = f"Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
+    total_error += test_invfreqz(b_butter_3, a_butter_3, order, order, n_freqs, label)
 
-    print(f"\n{title}:")
-    print("Original coefficients:")
-    print(f"b = {b}")
-    print(f"a = {a}")
-    print("Estimated coefficients:")
-    print(f"bh = {bh}")
-    print(f"ah = {ah}")
-    if len(b)-1 == n_bh and len(a)-1 == n_ah:
-        print("Errors:")
-        print(f"b-bh = {b-bh}")
-        print(f"a-ah = {a-ah}")
-    plot_frequency_response_fit(b, a, bh, ah, w, title)
-    maybe_stop()
-    print("--------------------------------------------------------------")
-    print("Steiglitz McBride:")
+if test_num == 4 or test_num == 0:
+    order = 4
+    n_freqs = 1024
+    b_butter_4, a_butter_4 = butter(order, 0.2, btype='low', analog=False)
+    label = f"Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
+    total_error += test_invfreqz(b_butter_4, a_butter_4, order, order, n_freqs, label)
 
-    maybe_stop()
+if test_num == 5 or test_num == 0:
+    b_path = [1, 2, 3, 2, 3]
+    n_b = len(b_path)-1
+    a_path = [1, 2, 3, 2, 1, 4]
+    n_a = len(a_path)-1 # order
+    order = max(n_b, n_a)
+    n_freqs = 64
+    label = f"Pathological unstable max-phase target, order {order}, n_freqs {n_freqs}"
+    total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_freqs, label)
 
-    bh, ah = fast_steiglitz_mcbride_filter_design(
-        H, U, n_bh, n_ah,
-        max_iterations=30, tol_iteration_change=1e-12)
-    print(f"\n{title}:")
-    print("Original coefficients:")
-    print(f"b = {b}")
-    print(f"a = {a}")
-    print("Estimated coefficients:")
-    print(f"bh = {bh}")
-    print(f"ah = {ah}")
-    if len(b)-1 == n_bh and len(a)-1 == n_ah:
-        print("Errors:")
-        print(f"b-bh = {b-bh}")
-        print(f"a-ah = {a-ah}")
-        print("Total Error:")
-        print(f"norm(a-ah) + norm(b-ba) = {norm(a-ah) + norm(b-bh)}")
-    print("--------------------------------------------------------------")
-    print("Stabilize if needed:")
-    ah_stable, roots, ah_stable = invert_unstable_roots(ah)
-    print("Filter poles:", roots)
-    print("Filter pole magnitudes:", np.abs(roots))
-    if not ah_stable:
-        print("Filter design UNSTABLE!")
-        print("Original polynomial coefficients:", a)
-        print("Stabilized polynomial coefficients:", ah_stable)
-        print("Roots after inversion:", roots)
-    else:
-        print("Filter design is not unstable")
+if test_num == 6 or test_num == 0:
+    N = 1024
+    proto_order = 6
+    order = 2 * proto_order
+    label = f"Chebyshev Type I bandpass filter, order {order}, n_freq {N}"
+    b_cheby, a_cheby = cheby1(proto_order, 1, [0.25, 0.75], btype='band', analog=False)
+    total_error += test_invfreqz(b_cheby, a_cheby, order, order, N, label)
 
-    def check_roots_stability(roots, tol=1e-7):
-        magnitudes = np.abs(roots)
-        num_unstable = np.sum(magnitudes > 1.0 + tol)
-        num_marginally_stable = np.sum((magnitudes >= 1.0 - tol) &
-                                       (magnitudes <= 1.0 + tol))
-        return num_unstable, num_marginally_stable
+if test_num == 7 or test_num == 0:
+    N = 1024
+    print("Custom filter with multiple poles and zeros")
+    b_custom = [0.0255, 0.0510, 0.0255]
+    a_custom = [1.0, -1.3790, 0.5630]
+    total_error += test_invfreqz(b_custom, a_custom, 2, 2, N, "Custom Filter")
 
-    num_unstable, num_marginally_stable = check_roots_stability(roots,tol=1e-7)
-
-    if num_marginally_stable > 0:
-        print(f"""
-        {num_marginally_stable} MARGINALLY UNSTABLE poles
-        (within 1e-7 of radius 1.0)
-        """)
-
-    if num_unstable > 0:
-        print(f"""
-        *** {num_unstable} UNSTABLE POLES found
-        _after_ calling invert_unstable_roots
-        """)
-
-def get_orders(n_b, n_a, model_complete_case=True):
-    if model_complete_case:
-        n_bh = n_b
-        n_ah = n_a
-    else:
-        n_bh = n_b - 1 # one too few zeros
-        n_ah = n_a - 1 # one too few poles
-    return n_bh, n_ah
-
-################################# TESTS ##############################
-print("--------------------------------------------------------------")
-
-model_complete_case = True  # In the model-complete case,
-                            # the filter design can exactly match the desired
-# model_complete_case = False # force an approximate design
-
-# # Test 0: Butterworth lowpass filter order 1
-# N = 8
-# b_butter, a_butter = butter(1, 0.25, btype='low', analog=False)
-# run_test(b_butter, a_butter, 1, 1, N, "Butterworth Lowpass Filter")
-# plt.show()
-# #exit();
-
-print("------------------------------------------------------------------------------")
-print("Test 0.1: Butterworth lowpass filter order 2")
-N = 16
-n_b = 2
-n_a = 2
-b_butter, a_butter = butter(n_a, 0.25, btype='low', analog=False)
-# n_bh, n_ah = get_orders(n_b, n_a, model_complete_case) # smaller if not model-complete
-print("-------------------------- Model Complete --------------------------------")
-run_test(b_butter, a_butter, n_b, n_a, N, "Butterworth Lowpass Filter")
-plt.show()
-print("------------------------- Model Incomplete -------------------------------")
-run_test(b_butter, a_butter, n_b-1, n_a-1, N, "Reduced-Order Butterworth Lowpass")
-plt.show()
-exit()
-
-# # Test 0.2: Butterworth lowpass filter order 3
-# N = 16
-# b_butter, a_butter = butter(3, 0.25, btype='low', analog=False)
-# run_test(b_butter, a_butter, 3, 3, N, "Butterworth Lowpass Filter")
-# plt.show()
-# exit();
-
-# # Test 0.3: Pathological unstable max-phase target:
-b_path = [1, 2, 3, 2, 3]
-a_path = [1, 2, 3, 2, 1, 4]
-N = 64
-run_test(b_path, a_path, 4, 5, N, "Pathological Target Filter")
-plt.show()
-#exit();
-
-# Test 1: Butterworth lowpass filter
-N = 1024
-b_butter, a_butter = butter(4, 0.2, btype='low', analog=False)
-run_test(b_butter, a_butter, 4, 4, N, "Butterworth Lowpass Filter")
-plt.show()
-#exit();
-
-# Test 2: Chebyshev Type I bandpass filter
-b_cheby, a_cheby = cheby1(6, 1, [0.25, 0.75], btype='band', analog=False)
-run_test(b_cheby, a_cheby, 12, 12, N, "Chebyshev Type I Bandpass Filter")
-
-# Test 3: Custom filter with multiple poles and zeros
-b_custom = [0.0255, 0.0510, 0.0255]
-a_custom = [1.0, -1.3790, 0.5630]
-run_test(b_custom, a_custom, 2, 2, N, "Custom Filter")
-
-plt.show()
+if test_num == 0:
+    print("--------------------------------------------------------------------------------")
+    this_file = os.path.basename(__file__)
+    print(f"{this_file}:\n Sum of all test errors is {total_error}")
