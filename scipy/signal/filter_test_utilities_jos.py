@@ -14,18 +14,84 @@ Additional notes:
     but rather adapted into scipy unit tests which I've not yet learned about.
 """
 
-from scipy.signal import freqz
-from scipy.linalg import norm
+import math
 import numpy as np
+from scipy.signal import freqz, resample
+from scipy.linalg import norm
+from scipy.fft import ifft, fft
+import matplotlib.pyplot as plt
 
+# ./invfreqz_jos.py
 from invfreqz_jos import (fast_equation_error_filter_design,
                           fast_steiglitz_mcbride_filter_design,
-                          invert_unstable_roots)  # ./invfreqz_jos.py
+                          invert_unstable_roots, append_flip_conjugate)
 from filter_plot_utilities_jos import plot_frequency_response_fit # , zplane
+
 
 def maybe_stop():
     #breakpoint() # uncomment to stop
     pass
+
+
+def plot_spectrum(log_spec):
+        plt.figure(figsize=(10, 6))
+        plt.title("Log Magnitude Spectrum Needing Smoothing")
+        plt.subplot(2, 1, 1)
+        plt.plot(log_spec)
+        plt.subplot(2, 1, 2)
+        plt.semilogx(log_spec)
+        plt.grid(True)
+        plt.xlabel('Frequency [bins]')
+        plt.ylabel('Magnitude [dB]')
+        plt.show()
+
+def min_phase_spectrum(spectrum, n_fft):
+    n_fft_0 = len(spectrum) # whole spectrum, including negative frequencies
+    if not math.log2(n_fft_0).is_integer():
+        print(f"min_phase_spectrum: Warning: length of complete spectrum "
+              f"{n_fft_0=} is not a power of 2")
+    abs_spectrum = np.abs(spectrum)
+    log_spec = np.log(abs_spectrum + 1e-8 * np.max(abs_spectrum))
+    plot_spectrum(log_spec)
+    breakpoint()
+    log_spec_upsampled = resample(log_spec, n_fft, domain='freq')
+    c = ifft(log_spec_upsampled).real # real cepstrum
+    # Check aliasing of cepstrum (in theory there is always some):
+    caliaserr = 100 * np.linalg.norm(c[round(n_fft_0*0.9)
+                                       :round(n_fft_0*1.1)]) / np.linalg.norm(c)
+    print(f"Cepstral time-aliasing check: Outer 20% of cepstrum holds "
+          f"{caliaserr:.2f} % of total rms")
+
+    # Check if aliasing error is too high
+    if caliaserr > 1.0:  # arbitrary limit
+        plot_spectrum(log_spec_upsampled)
+        raise ValueError('Increase n_fft and/or smooth Sdb to shorten cepstrum')
+
+    # Fold cepstrum to reflect non-min-phase zeros inside unit circle
+    cf = np.zeros(n_fft, dtype=complex)
+    cf[0] = c[0]
+    n_spec = n_fft // 2 + 1 # non-negative freqs
+    cf[1:n_spec-1] = c[1:n_spec-1] + c[n_fft-1:n_spec-1:-1]
+    cf[n_spec-1] = c[n_spec-1]
+
+    # Compute minimum-phase spectrum
+    Cf = fft(cf)
+    Smp = np.exp(Cf)  # minimum-phase spectrum
+
+    return resample(Smp, n_fft_0, domain='freq')
+
+
+def min_phase_half_spectrum(half_spec, n_fft):
+    n_spec = len(half_spec)
+    if not math.log2(n_spec-1).is_integer():
+        print(f"min_phase: Warning: length of non-negative-frequency spectrum "
+              f"{n_spec=} is not a power of 2 plus 1")
+    mag_spectrum = append_flip_conjugate(np.abs(half_spec), is_magnitude=True)
+    assert n_fft > 2 * (n_spec-1), f"{n_fft=} should be larger than twice "
+    f"half_spec size + 1 = {2 * (n_spec-1)}"
+    mps = min_phase_spectrum(mag_spectrum, n_fft)
+    Smpp = mps[:n_spec] # nonnegative-frequency portion
+    return Smpp
 
 
 def check_roots_stability(roots, tol=1e-7):
