@@ -20,7 +20,7 @@ import os
 import numpy as np
 
 # from scipy import signal
-from scipy.signal import butter, cheby1
+from scipy.signal import butter, cheby1, minimum_phase
 
 from filter_test_utilities_jos import test_invfreqz
             # , test_eqnerr, test_steiglitz_mcbride, test_prony, test_pade_prony
@@ -56,8 +56,8 @@ if test_num == 2 or test_num == 0:
     label_complete = f"Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
     test_invfreqz(b_butter_2, a_butter_2, order, order, n_freqs, label_complete)
     order_reduced = order - 1
-    label_reduced = f"""Reduced-Order Butterworth lowpass,
-                        order {order_reduced}, n_freqs {n_freqs}"""
+    label_reduced = "Reduced-Order Butterworth lowpass, "
+    f"order {order_reduced}, n_freqs {n_freqs}"
     total_error += test_invfreqz(b_butter_2, a_butter_2, order_reduced, order_reduced,
                                  n_freqs, label_reduced)
 
@@ -82,8 +82,8 @@ if test_num == 5 or test_num == 0:
     n_a = len(a_path)-1 # order
     order = max(n_b, n_a)
     n_freqs = 64
-    label = f"""{test_num}: Pathological unstable max-phase target,
-                order {order}, n_freqs {n_freqs}"""
+    label = f"{test_num}: Pathological unstable max-phase target,"
+    f" order {order}, n_freqs {n_freqs}"
     total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_freqs, label)
 
 if test_num == 6 or test_num == 0:
@@ -107,13 +107,18 @@ if test_num == 8 or test_num == 0:
     indices = np.arange(n_freq+1)
     power = 0.5 # 1/sqrt(f)
     rolloff = 1 / np.power(indices + 1, power) # 1/(n+1)^p
-    b_rolloff = np.fft.ifft(rolloff)
+    n_fft = 4 * n_freq
+    rolloff_mp = minimum_phase(rolloff, method='homomorphic',
+                               n_fft=n_fft) #, half=False)
+    b_rolloff = np.fft.ifft(rolloff_mp)
     a_rolloff = np.ones(1)
     n_b = len(b_rolloff)-1
     n_a = len(a_rolloff)-1
-    order = max(n_b, n_a)
+    # order = max(n_b, n_a) # model-complete
+    order = 4 # reduced-order approximation
     label = f"{test_num}: 1/f^{power} rolloff filter, order {order}, n_freq {n_freq}"
-    total_error += test_invfreqz(b_rolloff, a_rolloff, order, order, n_freq, label)
+    total_error += test_invfreqz(b_rolloff, a_rolloff, order, order,
+                                 n_freq, label, log_freq=True)
 
 # -------------------------------------------------------------------------------
 

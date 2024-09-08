@@ -36,16 +36,16 @@ def check_roots_stability(roots, tol=1e-7):
     return num_unstable, num_marginally_stable
 
 
-def test_invfreqz(b, a, n_bh, n_ah, N, title, try_iterative=False):
+def test_invfreqz(b, a, n_bh, n_ah, N, title, log_freq=False, try_iterative=False):
     print("--------------------------------------------------------------------------------")
-    err = test_eqnerr(b, a, n_bh, n_ah, N, title)
+    err = test_eqnerr(b, a, n_bh, n_ah, N, title, log_freq=log_freq)
     if try_iterative:
         maybe_stop()
         print("----------------------------")
-        err += test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title)
+        err += test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title, log_freq=log_freq)
     return err
 
-def test_eqnerr(b, a, n_bh, n_ah, N, title):
+def test_eqnerr(b, a, n_bh, n_ah, N, title, log_freq=False):
     w = np.linspace(0, np.pi, int(N+1))
     w2,H = freqz(b, a, worN=w)
     if (not np.allclose(w,w2)):
@@ -76,12 +76,13 @@ def test_eqnerr(b, a, n_bh, n_ah, N, title):
         print("Total Coefficient Error:")
         error_coeffs = norm(a-ah) + norm(b-bh)
         print(f"norm(a-ah) + norm(b-ba) = {error_coeffs}")
-    error_freq_resp = plot_frequency_response_fit(b, a, bh, ah, w, title)
+    error_freq_resp = plot_frequency_response_fit(b, a, bh, ah, w, title,
+                                                  log_freq=log_freq, show_plot=True)
     print(f"norm(frequency_response_error) = {error_freq_resp}")
     return error_freq_resp 
 
 
-def test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title):
+def test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title, log_freq=False):
     print("Steiglitz McBride:")
 
     w = np.linspace(0, np.pi, int(N+1))
@@ -134,7 +135,8 @@ def test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title):
         _after_ calling invert_unstable_roots
         """)
 
-    error_freq_resp = plot_frequency_response_fit(b, a, bh, ah, w, title)
+    error_freq_resp = plot_frequency_response_fit(b, a, bh, ah, w, title,
+                                                  show_plot=True, log_freq=log_freq)
     print(f"norm(frequency_response_error) = {error_freq_resp}")
 
     return error_freq_resp 
