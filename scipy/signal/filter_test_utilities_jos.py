@@ -77,6 +77,7 @@ def test_eqnerr(b, a, n_bh, n_ah, N, title):
         error_coeffs = norm(a-ah) + norm(b-bh)
         print(f"norm(a-ah) + norm(b-ba) = {error_coeffs}")
     error_freq_resp = plot_frequency_response_fit(b, a, bh, ah, w, title)
+    print(f"norm(frequency_response_error) = {error_freq_resp}")
     return error_freq_resp 
 
 
@@ -134,5 +135,6 @@ def test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title):
         """)
 
     error_freq_resp = plot_frequency_response_fit(b, a, bh, ah, w, title)
+    print(f"norm(frequency_response_error) = {error_freq_resp}")
 
     return error_freq_resp 

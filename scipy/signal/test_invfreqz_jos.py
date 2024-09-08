@@ -17,6 +17,7 @@ Additional notes:
 
 import sys
 import os
+import numpy as np
 
 # from scipy import signal
 from scipy.signal import butter, cheby1
@@ -45,7 +46,7 @@ if test_num == 1 or test_num == 0:
     order = 1
     n_freqs = 8
     b_butter_1, a_butter_1 = butter(order, 0.25, btype='low', analog=False)
-    label = f"Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
+    label = f"{test_num}: Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
     total_error += test_invfreqz(b_butter_1, a_butter_1, order, order, n_freqs, label)
 
 if test_num == 2 or test_num == 0:
@@ -64,14 +65,14 @@ if test_num == 3 or test_num == 0:
     order = 3
     n_freqs = 16
     b_butter_3, a_butter_3 = butter(order, 0.25, btype='low', analog=False)
-    label = f"Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
+    label = f"{test_num}: Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
     total_error += test_invfreqz(b_butter_3, a_butter_3, order, order, n_freqs, label)
 
 if test_num == 4 or test_num == 0:
     order = 4
     n_freqs = 1024
     b_butter_4, a_butter_4 = butter(order, 0.2, btype='low', analog=False)
-    label = f"Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
+    label = f"{test_num}: Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
     total_error += test_invfreqz(b_butter_4, a_butter_4, order, order, n_freqs, label)
 
 if test_num == 5 or test_num == 0:
@@ -81,23 +82,40 @@ if test_num == 5 or test_num == 0:
     n_a = len(a_path)-1 # order
     order = max(n_b, n_a)
     n_freqs = 64
-    label = f"Pathological unstable max-phase target, order {order}, n_freqs {n_freqs}"
+    label = f"""{test_num}: Pathological unstable max-phase target,
+                order {order}, n_freqs {n_freqs}"""
     total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_freqs, label)
 
 if test_num == 6 or test_num == 0:
     N = 1024
     proto_order = 6
     order = 2 * proto_order
-    label = f"Chebyshev Type I bandpass filter, order {order}, n_freq {N}"
+    label = f"{test_num}: Chebyshev Type I bandpass filter, order {order}, n_freq {N}"
     b_cheby, a_cheby = cheby1(proto_order, 1, [0.25, 0.75], btype='band', analog=False)
     total_error += test_invfreqz(b_cheby, a_cheby, order, order, N, label)
 
 if test_num == 7 or test_num == 0:
-    N = 1024
-    print("Custom filter with multiple poles and zeros")
+    n_freq = 1024
+    label = "Custom filter with multiple poles and zeros"
     b_custom = [0.0255, 0.0510, 0.0255]
     a_custom = [1.0, -1.3790, 0.5630]
-    total_error += test_invfreqz(b_custom, a_custom, 2, 2, N, "Custom Filter")
+    total_error += test_invfreqz(b_custom, a_custom, 2, 2, n_freq, label)
+
+if test_num == 8 or test_num == 0:
+    n_freq = 1024
+    print("1/f filter")
+    indices = np.arange(n_freq+1)
+    power = 0.5 # 1/sqrt(f)
+    rolloff = 1 / np.power(indices + 1, power) # 1/(n+1)^p
+    b_rolloff = np.fft.ifft(rolloff)
+    a_rolloff = np.ones(1)
+    n_b = len(b_rolloff)-1
+    n_a = len(a_rolloff)-1
+    order = max(n_b, n_a)
+    label = f"{test_num}: 1/f^{power} rolloff filter, order {order}, n_freq {n_freq}"
+    total_error += test_invfreqz(b_rolloff, a_rolloff, order, order, n_freq, label)
+
+# -------------------------------------------------------------------------------
 
 if test_num == 0:
     print("--------------------------------------------------------------------------------")
