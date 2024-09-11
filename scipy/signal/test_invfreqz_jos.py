@@ -119,10 +119,14 @@ def self_convolve(arr, p):
     return result
 
 def model_matched_rolloff(power, test_num, title):
+    print("--------------------------------------------------------------------------------")
     assert power.is_integer() and power > 0, f"{power=} must be a positive integer"
     n_freq = 1024
     wT = np.linspace(0, np.pi, n_freq+1)
-    _,rolloff_mp = freqz(0.001, self_convolve([1, -0.999], power), worN=wT)
+    pole = 0.999
+    rolloff_denom = self_convolve([1, -pole], power)
+    print(f"{rolloff_denom=}")
+    _,rolloff_mp = freqz( (1-pole) ** power, rolloff_denom, worN=wT)
     plot_mag_spectrum(dB(rolloff_mp),
                       title=f"{int(power)}-pole magnitude frequency response",
                       mag_units='dB')
@@ -155,10 +159,19 @@ if test_num == 10 or test_num == 0:
 if test_num == 11 or test_num == 0:
     n_freq = 1024
     print("1/sqrt(f) rolloff")
-    power = 0.5 # 1/sqrt(f) - model-incomplete case
-    indices = np.arange( n_freq + 1 )
-    rolloff = 1 / np.power( indices + 1, power ) # 1/(n+1)^p
-    n_fft = 4 * n_freq
+    power = 1.5 # 1/sqrt(f) - model-incomplete case
+    # Create desired magnitude spectrum, from dc to fs/2 inclusive:
+    indices = 1 + np.arange( n_freq )
+    rolloff = np.power( indices, -power )
+    rolloff = np.concatenate(([rolloff[0]], rolloff)) # [1, 1/(n+1)^p], n=0,1,...
+    # plot it:
+    wT = np.linspace(0, np.pi, n_freq+1)
+    breakpoint()
+    plot_mag_spectrum(dB(rolloff),
+                      title=f"{int(power)}-pole magnitude frequency response",
+                      mag_units='dB')
+    n_fft = 4 * n_freq # for spectral interpolation
+    breakpoint()
     rolloff_mp = min_phase_half_spectrum(rolloff, n_fft=n_fft) #, half=False)
     b_rolloff = np.fft.ifft(append_flip_conjugate(rolloff_mp))
     a_rolloff = np.ones(1)

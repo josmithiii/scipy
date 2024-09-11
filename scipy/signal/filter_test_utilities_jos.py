@@ -39,8 +39,10 @@ def min_phase_spectrum(spectrum, n_fft):
         print(f"min_phase_spectrum: Warning: length of complete spectrum "
               f"{n_fft_0=} is not a power of 2")
     abs_spectrum = np.abs(spectrum)
-    log_spec = np.log(abs_spectrum + 1e-8 * np.max(abs_spectrum))
-    plot_mag_spectrum(log_spec, title="Log Magnitude Spectrum Needing Smoothing")
+    #E: log_spec = np.log(abs_spectrum + 1e-8 * np.max(abs_spectrum))
+    #E: plot_mag_spectrum(log_spec, title="Log Magnitude Spectrum Needing Smoothing")
+    log_spec = 20 * np.log10(abs_spectrum + 1e-8 * np.max(abs_spectrum))
+    plot_mag_spectrum(log_spec, title="DB Magnitude Spectrum Needing Smoothing")
     breakpoint()
     log_spec_upsampled = resample(log_spec, n_fft, domain='freq')
     c = ifft(log_spec_upsampled).real # real cepstrum - real input detected?
@@ -65,7 +67,8 @@ def min_phase_spectrum(spectrum, n_fft):
     # Compute minimum-phase spectrum
     Cf = fft(cf)
     Cfrs = resample(Cf, n_fft_0, domain='freq') # use decimate instead?
-    Smp = np.exp(Cfrs)  # minimum-phase spectrum
+    #E: Smp = np.exp(Cfrs)  # minimum-phase spectrum
+    Smp = np.power(10, Cfrs/20)  # minimum-phase spectrum
 
     return Smp
 
@@ -75,6 +78,7 @@ def min_phase_half_spectrum(half_spec, n_fft):
     if not math.log2(n_spec-1).is_integer():
         print(f"min_phase: Warning: length of non-negative-frequency spectrum "
               f"{n_spec=} is not a power of 2 plus 1")
+    breakpoint()
     mag_spectrum = append_flip_conjugate(np.abs(half_spec), is_magnitude=True)
     assert n_fft > 2 * (n_spec-1), f"{n_fft=} should be larger than twice "
     f"half_spec size + 1 = {2 * (n_spec-1)}"

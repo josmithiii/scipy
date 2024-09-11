@@ -55,6 +55,7 @@ def plot_mag_spectrum(mag_spec, title=None, mag_units='dB'):
         plt.grid(True)
         plt.xlabel('Frequency [bins]')
         plt.ylabel(f'Magnitude [{mag_units}]')
+        plt.tight_layout()
         plt.show()
 
 
@@ -180,7 +181,8 @@ def plot_frequency_response_fit(b_orig, a_orig, b_est, a_est, w, title,
     h_orig_db = 20 * np.log10(np.maximum(np.abs(h_orig), 10**(min_db/20)))
     h_est_db = 20 * np.log10(np.maximum(np.abs(h_est), 10**(min_db/20)))
     max_db = np.max(np.maximum(h_orig_db, h_est_db))
-    max_db = 5 * math.ceil(max_db / 5)
+    min_db_plot = np.min(np.minimum(h_orig_db, h_est_db))
+    max_db_plot = 5 * math.ceil(max_db / 5)
 
     # Plot Magnitude Response
     if log_freq:
@@ -191,7 +193,7 @@ def plot_frequency_response_fit(b_orig, a_orig, b_est, a_est, w, title,
         plt.plot(w, h_est_db, 'r--', label='Estimated')
     plt.title(f'{title} - Magnitude Response')
     plt.ylabel('Magnitude [dB]')
-    plt.ylim(min_db, max_db)  # Set y-axis limits
+    plt.ylim(min_db_plot, max_db_plot)  # Set y-axis limits
     plt.legend()
     plt.grid(True)
 
