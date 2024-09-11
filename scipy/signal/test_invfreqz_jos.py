@@ -162,18 +162,22 @@ if test_num == 11 or test_num == 0:
     power = 1.5 # 1/sqrt(f) - model-incomplete case
     # Create desired magnitude spectrum, from dc to fs/2 inclusive:
     indices = 1 + np.arange( n_freq )
-    rolloff = np.power( indices, -power )
-    rolloff = np.concatenate(([rolloff[0]], rolloff)) # [1, 1/(n+1)^p], n=0,1,...
+    rolloff_lin_half = np.power( indices, -power )
+    rolloff_lin_half = np.concatenate(([rolloff_lin_half[0]],
+                                       rolloff_lin_half)) # [1, 1/(n+1)^p], n=0,1,...
     # plot it:
     wT = np.linspace(0, np.pi, n_freq+1)
-    breakpoint()
-    plot_mag_spectrum(dB(rolloff),
-                      title=f"{int(power)}-pole magnitude frequency response",
+    rolloff_db_half = dB(rolloff_lin_half)
+    plot_mag_spectrum(rolloff_db_half,
+                      title=f"{int(power)}-pole magnitude frequency response"
+                      "pre-interpolation",
                       mag_units='dB')
     n_fft = 4 * n_freq # for spectral interpolation
     breakpoint()
-    rolloff_mp = min_phase_half_spectrum(rolloff, n_fft=n_fft) #, half=False)
-    b_rolloff = np.fft.ifft(append_flip_conjugate(rolloff_mp))
+    rolloff_mp_lin_half = min_phase_half_spectrum(rolloff_lin_half,
+                                                  n_fft=n_fft) #, half=False)
+    rolloff_mp_lin_whole = append_flip_conjugate(rolloff_mp_lin_half)
+    b_rolloff = np.fft.ifft(rolloff_mp_lin_whole)
     a_rolloff = np.ones(1)
     n_b = 4
     n_a = 4

@@ -59,6 +59,17 @@ def plot_mag_spectrum(mag_spec, title=None, mag_units='dB'):
         plt.show()
 
 
+def plot_signal(signal, title=None):
+        plt.figure(figsize=(10, 6))
+        plt.plot(signal)
+        plt.title(title)
+        plt.grid(True)
+        plt.ylabel('Amplitude')
+        plt.xlabel('Time [samples]')
+        plt.tight_layout()
+        plt.show()
+
+
 def plot_bode(w, H, title=None, save_path=None, display=True):
     # Convert frequency to Hz
     f = w / (2 * np.pi)
@@ -118,15 +129,15 @@ def plot_bode_filter_responses(filter_responses, labels, cutoff,
         plt.close()
 
 
-def plot_spectrum_overlay(spec1, spec2, w, title, lab1, lab2, log_freq=False):
-    """Plot overlay of two spectra."""
+def plot_spectrum_overlay(spec1_lin, spec2_lin, w, title, lab1, lab2, log_freq=False):
+    """Plot overlay of two complex spectra."""
     plt.figure(figsize=(12, 6))
     plt.subplot(2, 1, 1)
 
     # Limit the minimum magnitude to -80 dB
     min_db = -80
-    spec1_db = 20 * np.log10(np.maximum(np.abs(spec1), 10**(min_db/20)))
-    spec2_db = 20 * np.log10(np.maximum(np.abs(spec2), 10**(min_db/20)))
+    spec1_db = 20 * np.log10(np.maximum(np.abs(spec1_lin), 10**(min_db/20)))
+    spec2_db = 20 * np.log10(np.maximum(np.abs(spec2_lin), 10**(min_db/20)))
 
     # Plot Magnitude Response
     if log_freq:
@@ -143,15 +154,15 @@ def plot_spectrum_overlay(spec1, spec2, w, title, lab1, lab2, log_freq=False):
     plt.grid(True)
 
     # Plot Phase Response
-    spec1[np.abs(spec1) < 1.0e-12] = 0
-    spec2[np.abs(spec2) < 1.0e-12] = 0
+    spec1_lin[np.abs(spec1_lin) < 1.0e-12] = 0
+    spec2_lin[np.abs(spec2_lin) < 1.0e-12] = 0
     plt.subplot(2, 1, 2)
     if log_freq:
-        plt.semilogx(w, np.unwrap(np.angle(spec1)), 'b', label=lab1)
-        plt.semilogx(w, np.unwrap(np.angle(spec2)), 'r--', label=lab2)
+        plt.semilogx(w, np.unwrap(np.angle(spec1_lin)), 'b', label=lab1)
+        plt.semilogx(w, np.unwrap(np.angle(spec2_lin)), 'r--', label=lab2)
     else:
-        plt.plot(w, np.unwrap(np.angle(spec1)), 'b', label=lab1)
-        plt.plot(w, np.unwrap(np.angle(spec2)), 'r--', label=lab2)
+        plt.plot(w, np.unwrap(np.angle(spec1_lin)), 'b', label=lab1)
+        plt.plot(w, np.unwrap(np.angle(spec2_lin)), 'r--', label=lab2)
     plt.title(f'{title} - Phase Response')
     plt.ylabel('Phase [rad]')
     plt.xlabel('Frequency [rad/sample]')
