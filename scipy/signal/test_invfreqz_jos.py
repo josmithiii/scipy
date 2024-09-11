@@ -4,7 +4,7 @@ Temporary test file for invfreqz proposal development.
 Author: Julius Smith
 Date: Started 9/03/24
 Usage:
-    
+
 Dependencies:
     - sys
     - os
@@ -42,7 +42,7 @@ if len(sys.argv) == 2:
         exit()
 else:
     test_num = 0
-        
+
 total_error = 0
 
 if test_num == 1 or test_num == 0:
@@ -104,30 +104,68 @@ if test_num == 7 or test_num == 0:
     a_custom = [1.0, -1.3790, 0.5630]
     total_error += test_invfreqz(b_custom, a_custom, 2, 2, n_freq, label)
 
-if test_num == 8 or test_num == 0:
+def self_convolve(arr, p):
+    if not isinstance(p, (int | float)):
+        raise TypeError("p must be a number")
+
+    if not p.is_integer() or p < 1:
+        raise ValueError("p must be a positive integer")
+
+    p = int(p)  # Convert p to int for use in range()
+
+    result = arr.copy()
+    for _ in range(p - 1):
+        result = np.convolve(result, arr, mode='full')
+    return result
+
+def model_matched_rolloff(power, test_num, title):
+    assert power.is_integer() and power > 0, f"{power=} must be a positive integer"
     n_freq = 1024
-    print("1/f^p filter")
-    # power = 0.5 # 1/sqrt(f)
-    power = 1.0 # model-matched case
-    if power == 1.0:
-        wT = np.linspace(0, np.pi, n_freq+1)
-        _,rolloff_mp = freqz(0.001, [1, -0.999], worN=wT)
-        plot_mag_spectrum(dB(rolloff_mp),
-                          title="one-pole frequency-response",
-                          mag_units='dB')
-    else:
-        indices = np.arange(n_freq+1)
-        rolloff = 1 / np.power(indices + 1, power) # 1/(n+1)^p
-        n_fft = 4 * n_freq
-        rolloff_mp = min_phase_half_spectrum(rolloff, n_fft=n_fft) #, half=False)
+    wT = np.linspace(0, np.pi, n_freq+1)
+    _,rolloff_mp = freqz(0.001, self_convolve([1, -0.999], power), worN=wT)
+    plot_mag_spectrum(dB(rolloff_mp),
+                      title=f"{int(power)}-pole magnitude frequency response",
+                      mag_units='dB')
     b_rolloff = np.fft.ifft(append_flip_conjugate(rolloff_mp))
     a_rolloff = np.ones(1)
-    n_b = len(b_rolloff)-1
-    n_a = len(a_rolloff)-1
-    # order = max(n_b, n_a) # model-complete
-    order = int(power) # can be exact
-    label = f"{test_num}: 1/f^{power} rolloff filter, order {order}, n_freq {n_freq}"
-    total_error += test_invfreqz(b_rolloff, a_rolloff, order, order,
+    order = int(power) # exact match possible
+    n_b = order
+    n_a = order
+    label = f"{test_num}: {title} filter, order {order}, n_freq {n_freq}"
+    error = test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
+                                 n_freq, label, log_freq=True)
+    return error
+
+if test_num == 8 or test_num == 0:
+    title = "1/f rolloff"
+    print(title)
+    power = 1.0 # model-matched case
+    total_error += model_matched_rolloff(power, test_num, title)
+
+if test_num == 9 or test_num == 0:
+    title = "1/f^2 rolloff"
+    power = 2.0 # model-matched case
+    total_error += model_matched_rolloff(power, test_num, title)
+
+if test_num == 10 or test_num == 0:
+    title = "1/f^3 rolloff"
+    power = 3.0 # model-matched case
+    total_error += model_matched_rolloff(power, test_num, title)
+
+if test_num == 11 or test_num == 0:
+    n_freq = 1024
+    print("1/sqrt(f) rolloff")
+    power = 0.5 # 1/sqrt(f) - model-incomplete case
+    indices = np.arange( n_freq + 1 )
+    rolloff = 1 / np.power( indices + 1, power ) # 1/(n+1)^p
+    n_fft = 4 * n_freq
+    rolloff_mp = min_phase_half_spectrum(rolloff, n_fft=n_fft) #, half=False)
+    b_rolloff = np.fft.ifft(append_flip_conjugate(rolloff_mp))
+    a_rolloff = np.ones(1)
+    n_b = 4
+    n_a = 4
+    label = f"{test_num}: 1/f^{power} rolloff filter, {n_a=} {n_b=}, n_freq {n_freq}"
+    total_error += test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
                                  n_freq, label, log_freq=True)
 
 # -------------------------------------------------------------------------------
