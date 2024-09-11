@@ -20,10 +20,13 @@ import os
 import numpy as np
 
 # from scipy import signal
-from scipy.signal import butter, cheby1
+from scipy.signal import butter, cheby1, freqz
 
+from filter_plot_utilities_jos import dB, plot_mag_spectrum
 from filter_test_utilities_jos import test_invfreqz, min_phase_half_spectrum
             # , test_eqnerr, test_steiglitz_mcbride, test_prony, test_pade_prony
+
+from invfreqz_jos import append_flip_conjugate
 
 # pytest --cache-clear
 
@@ -103,18 +106,26 @@ if test_num == 7 or test_num == 0:
 
 if test_num == 8 or test_num == 0:
     n_freq = 1024
-    print("1/f filter")
-    indices = np.arange(n_freq+1)
-    power = 0.5 # 1/sqrt(f)
-    rolloff = 1 / np.power(indices + 1, power) # 1/(n+1)^p
-    n_fft = 4 * n_freq
-    rolloff_mp = min_phase_half_spectrum(rolloff, n_fft=n_fft) #, half=False)
-    b_rolloff = np.fft.ifft(rolloff_mp)
+    print("1/f^p filter")
+    # power = 0.5 # 1/sqrt(f)
+    power = 1.0 # model-matched case
+    if power == 1.0:
+        wT = np.linspace(0, np.pi, n_freq+1)
+        _,rolloff_mp = freqz(0.001, [1, -0.999], worN=wT)
+        plot_mag_spectrum(dB(rolloff_mp),
+                          title="one-pole frequency-response",
+                          mag_units='dB')
+    else:
+        indices = np.arange(n_freq+1)
+        rolloff = 1 / np.power(indices + 1, power) # 1/(n+1)^p
+        n_fft = 4 * n_freq
+        rolloff_mp = min_phase_half_spectrum(rolloff, n_fft=n_fft) #, half=False)
+    b_rolloff = np.fft.ifft(append_flip_conjugate(rolloff_mp))
     a_rolloff = np.ones(1)
     n_b = len(b_rolloff)-1
     n_a = len(a_rolloff)-1
     # order = max(n_b, n_a) # model-complete
-    order = 4 # reduced-order approximation
+    order = int(power) # can be exact
     label = f"{test_num}: 1/f^{power} rolloff filter, order {order}, n_freq {n_freq}"
     total_error += test_invfreqz(b_rolloff, a_rolloff, order, order,
                                  n_freq, label, log_freq=True)

@@ -5,13 +5,66 @@ from scipy.signal import freqz
 from scipy.linalg import norm
 
 
+def dB(amplitude_array, clip=1e-8):
+    """
+    Convert real or complex numpy array to magnitude in decibels.
+
+    Parameters:
+    amplitude_array (numpy.ndarray): Input array of linear amplitudes (real or complex).
+    clip (float): Minimum amplitude to consider (default: 1e-8).
+
+    Returns:
+    numpy.ndarray: Array of magnitudes in decibels.
+
+    # Example usage
+    if __name__ == "__main__":
+        # Create a sample array
+        sample_array = np.array([0, 1e-9, 1e-5, 0.1, 1, 10, 100])
+
+        # Convert to dB
+        db_result = dB(sample_array)
+
+        # Print results
+        for amp, db in zip(sample_array, db_result):
+            print(f"Amplitude: {amp:.2e}, dB: {db:.2f}")
+    """
+    # Ensure the input is a numpy array
+    amplitude_array = np.asarray(amplitude_array)
+
+    # Calculate the magnitude of the array (handles both real and complex inputs)
+    magnitude = np.abs(amplitude_array)
+
+    # Clip values below the specified threshold
+    clipped_magnitude = np.maximum(magnitude, clip)
+
+    # Convert to decibels
+    db_array = 20 * np.log10(clipped_magnitude)
+
+    return db_array
+
+
+def plot_mag_spectrum(mag_spec, title=None, mag_units='dB'):
+        plt.figure(figsize=(10, 6))
+        plt.subplot(2, 1, 1)
+        plt.plot(mag_spec)
+        plt.title(title)
+        plt.grid(True)
+        plt.ylabel(f'Magnitude [{mag_units}]')
+        plt.subplot(2, 1, 2)
+        plt.semilogx(mag_spec)
+        plt.grid(True)
+        plt.xlabel('Frequency [bins]')
+        plt.ylabel(f'Magnitude [{mag_units}]')
+        plt.show()
+
+
 def plot_bode(w, H, title=None, save_path=None, display=True):
     # Convert frequency to Hz
     f = w / (2 * np.pi)
-    
+
     # Calculate magnitude in dB
     db = 20 * np.log10(np.abs(H))
-    
+
     # Create the Bode plot
     plt.figure(figsize=(10, 6))
     plt.semilogx(f, db)
@@ -36,28 +89,28 @@ def plot_bode(w, H, title=None, save_path=None, display=True):
 def plot_bode_filter_responses(filter_responses, labels, cutoff,
                                save_path=None, display=True):
     plt.figure(figsize=(12, 8))
-    
+
     for (w, h), label in zip(filter_responses, labels):
         db = 20 * np.log10(np.abs(h))
         plt.semilogx(w / (2 * np.pi), db, label=label)
-    
+
     plt.grid(True, which="both", ls="-", alpha=0.5)
     plt.xlabel('Frequency [Hz]')
     plt.ylabel('Magnitude [dB]')
     plt.title('Bode Plot Comparison of Filters')
     plt.axvline(cutoff, color='red', linestyle='--', label='Cutoff Frequency')
     plt.axhline(-3, color='green', linestyle=':', label='-3 dB Point')
-    
+
     plt.ylim(-80, 5)
     plt.xlim(0.1 * cutoff, 10 * cutoff)
-    
+
     plt.legend()
     plt.show()
 
     if save_path:
         plt.savefig(save_path, format='ps', dpi=300, bbox_inches='tight')
         print(f"Plot saved as {save_path}")
-    
+
     if display:
         plt.show()
     else:
@@ -176,40 +229,40 @@ def zplane(b, a):
     zplane(b, a)
 
     """
-    
+
     # Get the poles and zeros
     p = np.roots(a)
     z = np.roots(b)
-    
+
     # Create a figure and a set of subplots
     fig, ax = plt.subplots()
-    
+
     # Plot the unit circle
     unit_circle = plt.Circle((0,0), 1, fill=False, color='gray', ls='dashed')
     ax.add_patch(unit_circle)
-    
+
     # Plot the zeros
     ax.scatter(z.real, z.imag, marker='o', s=100, color='b', label='Zeros')
-    
+
     # Plot the poles
     ax.scatter(p.real, p.imag, marker='x', s=100, color='r', label='Poles')
-    
+
     # Set the limits
     r = 1.5 * max(np.max(np.abs(z)), np.max(np.abs(p)), 1)
     ax.set_xlim((-r, r))
     ax.set_ylim((-r, r))
-    
+
     # Make the plot square
     ax.set_aspect('equal', adjustable='box')
-    
+
     # Add labels and title
     ax.set_xlabel('Real')
     ax.set_ylabel('Imaginary')
     ax.set_title('Pole-Zero Plot')
     ax.legend()
-    
+
     # Add grid
     ax.grid(True)
-    
+
     # Show the plot
     plt.show()

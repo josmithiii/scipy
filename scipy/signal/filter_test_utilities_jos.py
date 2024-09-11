@@ -19,31 +19,19 @@ import numpy as np
 from scipy.signal import freqz, resample
 from scipy.linalg import norm
 from scipy.fft import ifft, fft
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 # ./invfreqz_jos.py
 from invfreqz_jos import (fast_equation_error_filter_design,
                           fast_steiglitz_mcbride_filter_design,
                           invert_unstable_roots, append_flip_conjugate)
-from filter_plot_utilities_jos import plot_frequency_response_fit # , zplane
+from filter_plot_utilities_jos import plot_frequency_response_fit, plot_mag_spectrum
 
 
 def maybe_stop():
     #breakpoint() # uncomment to stop
     pass
 
-
-def plot_spectrum(log_spec):
-        plt.figure(figsize=(10, 6))
-        plt.title("Log Magnitude Spectrum Needing Smoothing")
-        plt.subplot(2, 1, 1)
-        plt.plot(log_spec)
-        plt.subplot(2, 1, 2)
-        plt.semilogx(log_spec)
-        plt.grid(True)
-        plt.xlabel('Frequency [bins]')
-        plt.ylabel('Magnitude [dB]')
-        plt.show()
 
 def min_phase_spectrum(spectrum, n_fft):
     n_fft_0 = len(spectrum) # whole spectrum, including negative frequencies
@@ -52,10 +40,10 @@ def min_phase_spectrum(spectrum, n_fft):
               f"{n_fft_0=} is not a power of 2")
     abs_spectrum = np.abs(spectrum)
     log_spec = np.log(abs_spectrum + 1e-8 * np.max(abs_spectrum))
-    plot_spectrum(log_spec)
+    plot_mag_spectrum(log_spec, title="Log Magnitude Spectrum Needing Smoothing")
     breakpoint()
     log_spec_upsampled = resample(log_spec, n_fft, domain='freq')
-    c = ifft(log_spec_upsampled).real # real cepstrum
+    c = ifft(log_spec_upsampled).real # real cepstrum - real input detected?
     # Check aliasing of cepstrum (in theory there is always some):
     caliaserr = 100 * np.linalg.norm(c[round(n_fft_0*0.9)
                                        :round(n_fft_0*1.1)]) / np.linalg.norm(c)
@@ -64,7 +52,7 @@ def min_phase_spectrum(spectrum, n_fft):
 
     # Check if aliasing error is too high
     if caliaserr > 1.0:  # arbitrary limit
-        plot_spectrum(log_spec_upsampled)
+        plot_mag_spectrum(log_spec_upsampled, title="Upsampled Log Spectrum")
         raise ValueError('Increase n_fft and/or smooth Sdb to shorten cepstrum')
 
     # Fold cepstrum to reflect non-min-phase zeros inside unit circle
@@ -76,9 +64,10 @@ def min_phase_spectrum(spectrum, n_fft):
 
     # Compute minimum-phase spectrum
     Cf = fft(cf)
-    Smp = np.exp(Cf)  # minimum-phase spectrum
+    Cfrs = resample(Cf, n_fft_0, domain='freq') # use decimate instead?
+    Smp = np.exp(Cfrs)  # minimum-phase spectrum
 
-    return resample(Smp, n_fft_0, domain='freq')
+    return Smp
 
 
 def min_phase_half_spectrum(half_spec, n_fft):
