@@ -10,7 +10,7 @@ Dependencies:
     - scipy.linalg
     - numpy
 Additional notes:
-    Intended not to be included in the final scipy squash-merge,
+    Intended not to be included in the final scipy pull-request squash-merge,
     but rather adapted into scipy unit tests which I've not yet learned about.
 """
 
@@ -124,7 +124,7 @@ def min_phase_spectrum(spec_lin_whole, n_fft):
     #E: Smp = np.exp(Cfrs)  # minimum-phase spectrum
     spec_minphase_lin_whole = np.power(10, Cfrs/20)  # minimum-phase spectrum
 
-    breakpoint()
+    # breakpoint()
     wT = np.linspace(0, np.pi, n_spec_0)
     spec_lin_half = spec_lin_whole[:n_spec_0]
     plot_spectrum_overlay(spec_lin_half, spec_minphase_lin_whole[:n_spec_0], wT,
@@ -156,14 +156,16 @@ def check_roots_stability(roots, tol=1e-7):
     return num_unstable, num_marginally_stable
 
 
-def test_invfreqz(b, a, n_bh, n_ah, N, title, log_freq=False, try_iterative=False):
+def test_invfreqz(b, a, n_bh, n_ah, N, title, log_freq=False, n_iter=0):
     print("--------------------------------------------------------------------------------")
     err = test_eqnerr(b, a, n_bh, n_ah, N, title, log_freq=log_freq)
-    if try_iterative:
+    if n_iter > 0:
         maybe_stop()
         print("----------------------------")
-        err += test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title, log_freq=log_freq)
+        err += test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title,
+                                      n_iter=n_iter, log_freq=log_freq)
     return err
+
 
 def test_eqnerr(b, a, n_bh, n_ah, N, title, log_freq=False):
     w = np.linspace(0, np.pi, int(N+1))
@@ -202,7 +204,7 @@ def test_eqnerr(b, a, n_bh, n_ah, N, title, log_freq=False):
     return error_freq_resp
 
 
-def test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title, log_freq=False):
+def test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title, n_iter=5, log_freq=False):
     print("Steiglitz McBride:")
 
     w = np.linspace(0, np.pi, int(N+1))
@@ -211,7 +213,7 @@ def test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title, log_freq=False):
 
     bh, ah = fast_steiglitz_mcbride_filter_design(
         H, U, n_bh, n_ah,
-        max_iterations=30,
+        max_iterations=n_iter,
         tol_iteration_change=1e-12,
         initial_learning_rate=0.1)
     print(f"\n{title}:")

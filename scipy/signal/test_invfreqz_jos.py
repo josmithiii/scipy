@@ -1,3 +1,4 @@
+
 """
 Module/script name: test_invfreqz_jos.py
 Temporary test file for invfreqz proposal development.
@@ -10,8 +11,9 @@ Dependencies:
     - os
     - scipy.signal
     - filter_test_utilities_jos
+    - filter_plot_utilities_jos
 Additional notes:
-    Intended not to be included in the final scipy squash-merge,
+    Intended not to be included in the final scipy pull-request squash-merge,
     but rather adapted into scipy unit tests which I've not yet learned about.
 """
 
@@ -63,6 +65,9 @@ if test_num == 2 or test_num == 0:
     f"order {order_reduced}, n_freqs {n_freqs}"
     total_error += test_invfreqz(b_butter_2, a_butter_2, order_reduced, order_reduced,
                                  n_freqs, label_reduced)
+    total_error += test_invfreqz(b_butter_2, a_butter_2, order_reduced, order_reduced,
+                                 n_freqs, label_reduced, n_iter=5)
+
 
 if test_num == 3 or test_num == 0:
     order = 3
@@ -156,24 +161,25 @@ if test_num == 10 or test_num == 0:
     power = 3.0 # model-matched case
     total_error += model_matched_rolloff(power, test_num, title)
 
-if test_num == 11 or test_num == 0:
-    n_freq = 1024
-    print("1/sqrt(f) rolloff")
-    power = 1.5 # 1/sqrt(f) - model-incomplete case
+def model_incomplete_rolloff(power, test_num, title=None, n_freq=1024):
+    print("--------------------------------------------------------------------------------")
+    if title is None:
+        title = f"1/f^{power} rolloff"
+
     # Create desired magnitude spectrum, from dc to fs/2 inclusive:
     indices = 1 + np.arange( n_freq )
     rolloff_lin_half = np.power( indices, -power )
     rolloff_lin_half = np.concatenate(([rolloff_lin_half[0]],
                                        rolloff_lin_half)) # [1, 1/(n+1)^p], n=0,1,...
+
     # plot it:
     wT = np.linspace(0, np.pi, n_freq+1)
     rolloff_db_half = dB(rolloff_lin_half)
-    plot_mag_spectrum(rolloff_db_half,
-                      title=f"{int(power)}-pole magnitude frequency response"
+    plot_mag_spectrum(rolloff_db_half, wT=wT,
+                      title=f"{title} magnitude frequency response, "
                       "pre-interpolation",
                       mag_units='dB')
     n_fft = 4 * n_freq # for spectral interpolation
-    breakpoint()
     rolloff_mp_lin_half = min_phase_half_spectrum(rolloff_lin_half,
                                                   n_fft=n_fft) #, half=False)
     rolloff_mp_lin_whole = append_flip_conjugate(rolloff_mp_lin_half)
@@ -182,8 +188,17 @@ if test_num == 11 or test_num == 0:
     n_b = 4
     n_a = 4
     label = f"{test_num}: 1/f^{power} rolloff filter, {n_a=} {n_b=}, n_freq {n_freq}"
-    total_error += test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
-                                 n_freq, label, log_freq=True)
+    error = test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
+                          n_freq, label, log_freq=True)
+    return error
+
+if test_num == 11 or test_num == 0:
+    power = 0.5
+    total_error += model_incomplete_rolloff(power, test_num)
+
+if test_num == 12 or test_num == 0:
+    power = 1.5
+    total_error += model_incomplete_rolloff(power, test_num)
 
 # -------------------------------------------------------------------------------
 

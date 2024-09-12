@@ -1,3 +1,14 @@
+"""
+Module/script name: filter_plot_utilities_jos.py
+Temporary file for invfreqz proposal development.
+Author: Julius Smith
+Date: Started 9/03/24
+
+Additional notes:
+    Intended not to be included in the final scipy pull-request squash-merge,
+    but rather adapted into scipy unit tests which I've not yet learned about.
+"""
+
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -43,15 +54,15 @@ def dB(amplitude_array, clip=1e-8):
     return db_array
 
 
-def plot_mag_spectrum(mag_spec, title=None, mag_units='dB'):
+def plot_mag_spectrum(mag_spec, wT=None, title=None, mag_units='dB'):
         plt.figure(figsize=(10, 6))
         plt.subplot(2, 1, 1)
-        plt.plot(mag_spec)
+        plt.plot(mag_spec) if wT is None else plt.plot(wT,mag_spec)
         plt.title(title)
         plt.grid(True)
         plt.ylabel(f'Magnitude [{mag_units}]')
         plt.subplot(2, 1, 2)
-        plt.semilogx(mag_spec)
+        plt.semilogx(mag_spec) if wT is None else plt.semilogx(wT, mag_spec)
         plt.grid(True)
         plt.xlabel('Frequency [bins]')
         plt.ylabel(f'Magnitude [{mag_units}]')
@@ -169,7 +180,7 @@ def plot_spectrum_overlay(spec1_lin, spec2_lin, w, title, lab1, lab2, log_freq=F
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-
+    return norm(spec1_lin - spec2_lin) / norm(spec1_lin)
 
 def plot_frequency_response_fit(b_orig, a_orig, b_est, a_est, w, title,
                                 show_plot=False, log_freq=False):

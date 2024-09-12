@@ -3,7 +3,7 @@ Module/script name: invfreqz_jos.py
 Temporary test file for invfreqz proposal development.
 Author: Julius Smith
 Date: Started 9/03/24
-    
+
 Dependencies: See import and from below
 Additional notes:
     Intended not to be included in the final scipy squash-merge,
@@ -28,14 +28,16 @@ from filter_utilities_jos import check_roots_stability
 from filter_plot_utilities_jos import zplane, plot_spectrum_overlay
 
 def invfreqz(
-    H: np.ndarray,
-    n_zeros: int,
-    n_poles: int,
-    U: np.ndarray | None = None,
-    weight: np.ndarray | None = None,
-    omega: np.ndarray | None = None,
-    n_iter: int | None = 0,
-    tolr: float | None = 1e-8        
+        H: np.ndarray,
+        n_zeros: int,
+        n_poles: int,
+        U: np.ndarray | None = None,
+        weight: np.ndarray | None = None,
+        omega: np.ndarray | None = None,
+        n_iter: int | None = 0,
+        tolr: float | None = 1e-8,
+        b_0: np.ndarray | None = None,
+        a_0: np.ndarray | None = None
 ) -> tuple[np.ndarray, np.ndarray]:
 
     if n_iter == 0:
@@ -43,7 +45,7 @@ def invfreqz(
     else:
         return fast_steiglitz_mcbride_filter_design(
             H, U, n_zeros, n_poles,
-            max_iterations=n_iter, tol_iteration_change=tolr,
+            max_iterations=n_iter, tol_iteration_change=tolr, b_0=None, a_0=None,
             zero_clip=1e-7, stabilize=True, initial_learning_rate=0.1 )
 
 
@@ -174,7 +176,7 @@ def fast_equation_error_filter_design(
         The last element of omega ({omega[-1]})
         must be approximately pi ({np.pi})
         """)
-    
+
     if is_complex and not np.isclose(omega[0], -np.pi):
         raise ValueError(f"""
         The first element of omega ({omega[0]}) must be approximately
@@ -249,27 +251,27 @@ def exp_window(A, r):
     """
     Apply pointwise exponential window [1, r, r^2, ...]
     to the elements of 1D numpy array A.
-    
+
     Parameters:
     A (numpy.ndarray): 1D input array
     r (float): Base of the exponential window
-    
+
     Returns:
     numpy.ndarray: Array A with exponential window applied
     """
     # Check if A is 1D
     if A.ndim != 1:
         raise ValueError("Input array A must be 1-dimensional")
-    
+
     # Create the exponential window
     window = r ** np.arange(len(A))
-    
+
     # Apply the window to A
-    return A * window    
+    return A * window
 
 
 def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=0,
-                                         tol_iteration_change=1e-7,
+                                         tol_iteration_change=1e-7, b_0=None, a_0=None,
                                          zero_clip=1e-7, stabilize=True,
                                          initial_learning_rate=1):
     """Frequency-domain Steiglitz-McBride algorithm.
@@ -305,8 +307,8 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
 
     """
 
-    current_b = np.zeros(n_zeros+1)
-    current_a = np.hstack((1, np.zeros(n_poles)))
+    current_b = b_0 if b_0 is not None else np.zeros(n_zeros+1)
+    current_a = a_0 if a_0 is not None else np.hstack((1, np.zeros(n_poles)))
     iterations = 0
 
     N = len(H)
@@ -328,8 +330,12 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
 
         # breakpoint()
 
-        new_b, new_a = fast_equation_error_filter_design(
-            H_local, n_zeros, n_poles, U=U_local, omega = w )
+        if b_0 is None or a_0 is None:
+            new_b, new_a = fast_equation_error_filter_design(
+                H_local, n_zeros, n_poles, U=U_local, omega = w )
+        else:
+            new_b = b_0
+            new_a = a_0
 
         print(f"{new_b = }")
         print(f"{new_a = }")
@@ -362,6 +368,12 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
         plot_spectrum_overlay(A,Ai,wA,"A and 1/A clipped", "A", "1/A")
         H_local = H_local * Ai
         U_local = U_local * Ai
+
+        _,Hh = freqz(new_b, new_a, worN=w)
+        title = "Steiglitz-McBride Iteration {iterations}"
+        err_freq_resp = plot_spectrum_overlay(H, Hh, w, title, "Desired",
+                                              f"Iteration {iterations}", log_freq=False)
+        print(f"{title}: norm(frequency_response_err) = {err_freq_resp}")
 
     return new_b, new_a
 
@@ -408,6 +420,7 @@ if __name__ == "__main__":
     bh, ah = fast_steiglitz_mcbride_filter_design(H, U, n_b, n_a,
                                                   max_iterations=5,
                                                   tol_iteration_change=1e-12,
+                                                  b_0=bh, a_0=ah,
                                                   initial_learning_rate=0.1 )
     print(f"\n{title}:")
     print("Original coefficients:")
