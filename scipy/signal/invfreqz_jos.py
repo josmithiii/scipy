@@ -37,16 +37,18 @@ def invfreqz(
         n_iter: int | None = 0,
         tolr: float | None = 1e-8,
         b_0: np.ndarray | None = None,
-        a_0: np.ndarray | None = None
+        a_0: np.ndarray | None = None,
+        debug: bool | None = True
 ) -> tuple[np.ndarray, np.ndarray]:
 
     if n_iter == 0:
-        return fast_equation_error_filter_design(H, n_zeros, n_poles, U, omega)
+        return fast_equation_error_filter_design(H, n_zeros, n_poles, U, omega,
+                                                 debug=debug)
     else:
         return fast_steiglitz_mcbride_filter_design(
             H, U, n_zeros, n_poles,
             max_iterations=n_iter, tol_iteration_change=tolr, b_0=None, a_0=None,
-            zero_clip=1e-7, stabilize=True, initial_learning_rate=0.1 )
+            zero_clip=1e-7, stabilize=True, initial_learning_rate=1.0, debug=debug )
 
 
 def toeplitz_circulant_window(x, n_window):
@@ -270,36 +272,36 @@ def exp_window(A, r):
     return A * window
 
 
-def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=0,
+def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=5,
                                          tol_iteration_change=1e-7, b_0=None, a_0=None,
                                          zero_clip=1e-7, stabilize=True,
-                                         initial_learning_rate=1):
+                                         initial_learning_rate=1, debug=True):
     """Frequency-domain Steiglitz-McBride algorithm.
 
     The Steiglitz-McBride algorithm converts an equation-error filter
     design to an output-error filter design.  To accomplish this, it
-    iteratively calls fast_equation_error_filter_design applying the
+    iteratively calls `fast_equation_error_filter_design`, applying the
     filter 1/a to both input and output on each iteration until either
     the maximum number of iterations is reached or the stopping
     tolerance in successive filter changes is achieved.
 
     Parameters:
     H (array): Desired frequency response, uniformly sampled,
-               including dc and pi, with no negative frequencies
-    U (array): Input frequency response (can be used for weighting)
-    n_zeros (int): Number of zeros in the filter
-    n_poles (int): Number of poles in the filter
-    max_iterations (int): Max number of iterations of the Steiglitz-McBride algorithm
+               including dc and pi, with no negative frequencies.
+    U (array): Input frequency response (can be used for weighting).
+    n_zeros (int): Number of zeros in the filter.
+    n_poles (int): Number of poles in the filter.
+    max_iterations (int): Max number of iterations of the Steiglitz-McBride algorithm.
     tol_iteration_change (float): Tolerance on the norm of the coefficients changes
                                   at which to halt Steiglitz-McBride iterations.
     stabilize (bool): When true, reflect any unstable poles
                       inside the unit circle if they go unstable.
     initial_learning_rate (float): learning rate climbs from here to 1
-                      over max_iterations.
+                      over max_iterations. Set to 1 to disable this feature.
 
     Returns:
-    b (array): Numerator coefficients of the designed filter
-    a (array): Denominator coefficients of the designed filter
+    b (array): Numerator coefficients of the designed filter.
+    a (array): Denominator coefficients of the designed filter.
 
     For maximum efficiency, the number of frequency points (length of
     H and U) should be Nfft/2+1, where Nfft is a power of 2 (FFT size
@@ -307,17 +309,19 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
 
     """
 
-    current_b = b_0 if b_0 is not None else np.zeros(n_zeros+1)
+    # Initialize filter coefficients
+    current_b = b_0 if b_0 is not None else np.zeros(n_zeros + 1)
     current_a = a_0 if a_0 is not None else np.hstack((1, np.zeros(n_poles)))
     iterations = 0
 
     N = len(H)
     w = np.linspace(0, np.pi, N)
 
-    if U is None:  # Make it effectively all 1s (no frequency-weighting == "impulse")
+    # If U is None, default to an array of ones (no weighting)
+    if U is None:
         U = np.ones_like(H)
 
-    # We are going to modify these arrays:
+    # Initialize H_local and U_local with copies of H and U
     H_local = H.copy()
     U_local = U.copy()
 
@@ -325,55 +329,70 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
     delta_learning_rate = (1.0 - initial_learning_rate) / max_iterations
 
     while True:
-
         print(f"\n------- iteration {iterations} -----------")
 
-        # breakpoint()
-
+        # Perform equation error filter design
         if b_0 is None or a_0 is None:
             new_b, new_a = fast_equation_error_filter_design(
                 H_local, n_zeros, n_poles, U=U_local, omega = w )
         else:
             new_b = b_0
             new_a = a_0
+            b_0 = None
+            a_0 = None
 
         print(f"{new_b = }")
         print(f"{new_a = }")
 
+        # Stabilize the filter if required
         if stabilize:
-            new_a,_,_ = invert_unstable_roots(new_a)
+            new_a, _, _ = invert_unstable_roots(new_a)
             print(f"{new_a=}")
 
-        freqz(new_b, new_a)
-        zplane(new_b, new_a)
+        # Compute the norm of the change in coefficients
+        if debug:
+            freqz(new_b, new_a)
+            zplane(new_b, new_a)
         norm_change = norm(new_a - current_a) + norm(new_b - current_b)
         print(f"norm_change in a at iteration {iterations}: {norm_change}")
+
+        # Check for convergence
         if norm_change < tol_iteration_change * norm(current_a):
             print(f"""
             Stopping tolerance {tol_iteration_change} reached
             after {iterations + 1} iterations.""")
             break
-        if iterations > max_iterations:
+        if iterations >= max_iterations:
             print(f"Reached maximum of {iterations} iterations.")
             break
-        # Go around the horn again:
+
+        # Update current coefficients
         current_a = new_a
         current_b = new_b
         iterations += 1
-        # wA, A = freqz(current_a, worN=N)
-        # Ai = clipped_real_array_inverse(A, zero_clip)
-        wA, Ai = freqz(1, exp_window(current_a, learning_rate), worN=N) # no zero_clip
-        learning_rate += delta_learning_rate
-        A = np.reciprocal(Ai)
-        plot_spectrum_overlay(A,Ai,wA,"A and 1/A clipped", "A", "1/A")
-        H_local = H_local * Ai
-        U_local = U_local * Ai
 
-        _,Hh = freqz(new_b, new_a, worN=w)
-        title = "Steiglitz-McBride Iteration {iterations}"
-        err_freq_resp = plot_spectrum_overlay(H, Hh, w, title, "Desired",
-                                              f"Iteration {iterations}", log_freq=False)
-        print(f"{title}: norm(frequency_response_err) = {err_freq_resp}")
+        # Compute the inverse frequency response of the current denominator polynomial
+        # Ai = clipped_real_array_inverse(A, zero_clip)
+        if learning_rate < 1.0:
+            wA, Ai = freqz(exp_window(current_a, learning_rate), [1], worN=N)
+            learning_rate += delta_learning_rate
+        else:
+            wA, Ai = freqz([1], current_a, worN=N) # 1 / A(z)
+        if debug:
+            A = np.reciprocal(Ai)
+            plot_spectrum_overlay(A,Ai,wA,"A and 1/A clipped", "A", "1/A")
+
+        # Update H_local and U_local using the original H and U
+        H_local = H * Ai
+        U_local = U * Ai
+
+        if debug:
+            _, Hh = freqz(new_b, new_a, worN=w)
+            title = f"Steiglitz-McBride Iteration {iterations}"
+            err_freq_resp = plot_spectrum_overlay(H, Hh, w, title, "Desired",
+                                                  f"Iteration {iterations}",
+                                                  log_freq=False)
+            print(f"{title}: norm(frequency_response_err) = {err_freq_resp}")
 
     return new_b, new_a
 
@@ -421,7 +440,8 @@ if __name__ == "__main__":
                                                   max_iterations=5,
                                                   tol_iteration_change=1e-12,
                                                   b_0=bh, a_0=ah,
-                                                  initial_learning_rate=0.1 )
+                                                  initial_learning_rate=0.1,
+                                                  debug=True )
     print(f"\n{title}:")
     print("Original coefficients:")
     print(f"b = {b}")
