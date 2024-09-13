@@ -214,8 +214,8 @@ def test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title, n_iter=5, log_freq=False)
     bh, ah = fast_steiglitz_mcbride_filter_design(
         H, U, n_bh, n_ah,
         max_iterations=n_iter,
-        tol_iteration_change=1e-12,
-        initial_learning_rate=0.1)
+        tol_iteration_change=1e-12)
+    #!  initial_learning_rate=0.1)
     print(f"\n{title}:")
     print("Original coefficients:")
     print(f"b = {b}")

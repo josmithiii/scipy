@@ -25,7 +25,7 @@ import numpy as np
 from scipy.linalg import toeplitz, solve, norm
 from scipy.signal import freqz
 from filter_utilities_jos import check_roots_stability
-from filter_plot_utilities_jos import zplane, plot_spectrum_overlay
+from filter_plot_utilities_jos import plot_spectrum_overlay # , zplane
 
 def invfreqz(
         H: np.ndarray,
@@ -46,7 +46,7 @@ def invfreqz(
         return fast_steiglitz_mcbride_filter_design(
             H, U, n_zeros, n_poles,
             max_iterations=n_iter, tol_iteration_change=tolr, b_0=None, a_0=None,
-            zero_clip=1e-7, stabilize=True, initial_learning_rate=0.1 )
+            zero_clip=1e-7, stabilize=True ) #! , initial_learning_rate=0.1 )
 
 
 def toeplitz_circulant_window(x, n_window):
@@ -270,69 +270,31 @@ def exp_window(A, r):
     return A * window
 
 
-def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=0,
+def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=100,
                                          tol_iteration_change=1e-7, b_0=None, a_0=None,
-                                         zero_clip=1e-7, stabilize=True,
-                                         initial_learning_rate=1):
-    """Frequency-domain Steiglitz-McBride algorithm.
+                                         zero_clip=1e-7, stabilize=True):
+    """Frequency-domain Steiglitz-McBride algorithm."""
 
-    The Steiglitz-McBride algorithm converts an equation-error filter
-    design to an output-error filter design.  To accomplish this, it
-    iteratively calls fast_equation_error_filter_design applying the
-    filter 1/a to both input and output on each iteration until either
-    the maximum number of iterations is reached or the stopping
-    tolerance in successive filter changes is achieved.
-
-    Parameters:
-    H (array): Desired frequency response, uniformly sampled,
-               including dc and pi, with no negative frequencies
-    U (array): Input frequency response (can be used for weighting)
-    n_zeros (int): Number of zeros in the filter
-    n_poles (int): Number of poles in the filter
-    max_iterations (int): Max number of iterations of the Steiglitz-McBride algorithm
-    tol_iteration_change (float): Tolerance on the norm of the coefficients changes
-                                  at which to halt Steiglitz-McBride iterations.
-    stabilize (bool): When true, reflect any unstable poles
-                      inside the unit circle if they go unstable.
-    initial_learning_rate (float): learning rate climbs from here to 1
-                      over max_iterations.
-
-    Returns:
-    b (array): Numerator coefficients of the designed filter
-    a (array): Denominator coefficients of the designed filter
-
-    For maximum efficiency, the number of frequency points (length of
-    H and U) should be Nfft/2+1, where Nfft is a power of 2 (FFT size
-    used herein).
-
-    """
-
-    current_b = b_0 if b_0 is not None else np.zeros(n_zeros+1)
+    current_b = b_0 if b_0 is not None else np.zeros(n_zeros + 1)
     current_a = a_0 if a_0 is not None else np.hstack((1, np.zeros(n_poles)))
     iterations = 0
 
     N = len(H)
     w = np.linspace(0, np.pi, N)
 
-    if U is None:  # Make it effectively all 1s (no frequency-weighting == "impulse")
+    if U is None:
         U = np.ones_like(H)
 
-    # We are going to modify these arrays:
+    # Initialize H_local and U_local
     H_local = H.copy()
     U_local = U.copy()
 
-    learning_rate = initial_learning_rate
-    delta_learning_rate = (1.0 - initial_learning_rate) / max_iterations
-
     while True:
-
         print(f"\n------- iteration {iterations} -----------")
-
-        # breakpoint()
 
         if b_0 is None or a_0 is None:
             new_b, new_a = fast_equation_error_filter_design(
-                H_local, n_zeros, n_poles, U=U_local, omega = w )
+                H_local, n_zeros, n_poles, U=U_local, omega=w)
         else:
             new_b = b_0
             new_a = a_0
@@ -341,11 +303,9 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
         print(f"{new_a = }")
 
         if stabilize:
-            new_a,_,_ = invert_unstable_roots(new_a)
+            new_a, _, _ = invert_unstable_roots(new_a)
             print(f"{new_a=}")
 
-        freqz(new_b, new_a)
-        zplane(new_b, new_a)
         norm_change = norm(new_a - current_a) + norm(new_b - current_b)
         print(f"norm_change in a at iteration {iterations}: {norm_change}")
         if norm_change < tol_iteration_change * norm(current_a):
@@ -353,26 +313,26 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
             Stopping tolerance {tol_iteration_change} reached
             after {iterations + 1} iterations.""")
             break
-        if iterations > max_iterations:
+        if iterations >= max_iterations:
             print(f"Reached maximum of {iterations} iterations.")
             break
-        # Go around the horn again:
+
         current_a = new_a
         current_b = new_b
         iterations += 1
-        # wA, A = freqz(current_a, worN=N)
-        # Ai = clipped_real_array_inverse(A, zero_clip)
-        wA, Ai = freqz(1, exp_window(current_a, learning_rate), worN=N) # no zero_clip
-        learning_rate += delta_learning_rate
-        A = np.reciprocal(Ai)
-        plot_spectrum_overlay(A,Ai,wA,"A and 1/A clipped", "A", "1/A")
-        H_local = H_local * Ai
-        U_local = U_local * Ai
 
-        _,Hh = freqz(new_b, new_a, worN=w)
-        title = "Steiglitz-McBride Iteration {iterations}"
-        err_freq_resp = plot_spectrum_overlay(H, Hh, w, title, "Desired",
-                                              f"Iteration {iterations}", log_freq=False)
+        # Compute the inverse frequency response
+        wA, Ai = freqz(1, current_a, worN=N)
+
+        # Update H_local and U_local using the original H and U
+        H_local = H * Ai
+        U_local = U * Ai
+
+        _, Hh = freqz(new_b, new_a, worN=w)
+        title = f"Steiglitz-McBride Iteration {iterations}"
+        plot_spectrum_overlay(H, Hh, w, title, "Desired",
+                              f"Iteration {iterations}", log_freq=False)
+        err_freq_resp = norm(H - Hh)
         print(f"{title}: norm(frequency_response_err) = {err_freq_resp}")
 
     return new_b, new_a
