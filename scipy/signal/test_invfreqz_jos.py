@@ -59,7 +59,8 @@ if test_num == 2 or test_num == 0:
     n_freqs = 16
     b_butter_2, a_butter_2 = butter(order, 0.25, btype='low', analog=False)
     label_complete = f"Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
-    test_invfreqz(b_butter_2, a_butter_2, order, order, n_freqs, label_complete)
+    total_error += test_invfreqz(b_butter_2, a_butter_2, order, order, n_freqs,
+                                 label_complete)
     order_reduced = order - 1
     label_reduced = "Reduced-Order Butterworth lowpass, "
     f"order {order_reduced}, n_freqs {n_freqs}"
@@ -70,13 +71,32 @@ if test_num == 2 or test_num == 0:
 
 
 if test_num == 3 or test_num == 0:
+    order = 2
+    n_freqs = 16
+    b_res_2 = np.array([1, 0, -1], dtype=float)
+    R = 0.9
+    a_res_2 = np.array([1, 0, R*R], dtype=float)
+    label_res = f"pi/2 resonator, order {order}, n_freqs {n_freqs}"
+    total_error += test_invfreqz(b_res_2, a_res_2, order, order, n_freqs, label_res)
+    total_error += test_invfreqz(b_res_2, a_res_2, order, order,
+                                 n_freqs, label_res, n_iter=5)
+
+    nl = 0.1 # Add "white noise" floor
+    b_respn_2 = b_res_2 + nl * a_res_2
+    a_respn_2 = a_res_2
+    label_pn = f"pi/2 resonator plus {nl}, n_freqs {n_freqs}"
+    total_error += test_invfreqz(b_respn_2, a_respn_2, order, order,
+                                 n_freqs, label_pn)
+    total_error += test_invfreqz(b_respn_2, a_respn_2, order, order,
+                                 n_freqs, label_pn, n_iter=5)
+
+
+if test_num == 4 or test_num == 0:
     order = 3
     n_freqs = 16
     b_butter_3, a_butter_3 = butter(order, 0.25, btype='low', analog=False)
     label = f"{test_num}: Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
     total_error += test_invfreqz(b_butter_3, a_butter_3, order, order, n_freqs, label)
-
-if test_num == 4 or test_num == 0:
     order = 4
     n_freqs = 1024
     b_butter_4, a_butter_4 = butter(order, 0.2, btype='low', analog=False)
