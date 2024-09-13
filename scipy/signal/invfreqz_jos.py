@@ -294,10 +294,16 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
     max_iterations (int): Max number of iterations of the Steiglitz-McBride algorithm.
     tol_iteration_change (float): Tolerance on the norm of the coefficients changes
                                   at which to halt Steiglitz-McBride iterations.
+    b_0 (array, optional): Initial numerator coefficients. Default is zeros.
+    a_0 (array, optional): Initial denominator coefficients. Default is [1, zeros].
+    zero_clip (float): Threshold to avoid divide by zero in frequency response inverse.
+                       Default is 1e-7.
     stabilize (bool): When true, reflect any unstable poles
                       inside the unit circle if they go unstable.
     initial_learning_rate (float): learning rate climbs from here to 1
                       over max_iterations. Set to 1 to disable this feature.
+    debug (bool): When True, enables plotting and additional print statements.
+                  Default is True.
 
     Returns:
     b (array): Numerator coefficients of the designed filter.
@@ -328,18 +334,23 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
     learning_rate = initial_learning_rate
     delta_learning_rate = (1.0 - initial_learning_rate) / max_iterations
 
+    initial_coeffs_used = False
+
     while True:
         print(f"\n------- iteration {iterations} -----------")
 
-        # Perform equation error filter design
-        if b_0 is None or a_0 is None:
-            new_b, new_a = fast_equation_error_filter_design(
-                H_local, n_zeros, n_poles, U=U_local, omega = w )
-        else:
+        if not initial_coeffs_used and b_0 is not None and a_0 is not None:
             new_b = b_0
             new_a = a_0
-            b_0 = None
-            a_0 = None
+            initial_coeffs_used = True
+        else:
+            # Perform equation error filter design
+            try:
+                new_b, new_a = fast_equation_error_filter_design(
+                    H_local, n_zeros, n_poles, U=U_local, omega=w)
+            except np.linalg.LinAlgError as e:
+                raise ValueError("Linear algebra error during "
+                                 f"iteration {iterations}: {e}")
 
         print(f"{new_b = }")
         print(f"{new_a = }")
@@ -373,14 +384,17 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
 
         # Compute the inverse frequency response of the current denominator polynomial
         # Ai = clipped_real_array_inverse(A, zero_clip)
+        # Compute the inverse frequency response of the current denominator polynomial
         if learning_rate < 1.0:
-            wA, Ai = freqz(exp_window(current_a, learning_rate), [1], worN=N)
+            windowed_a = exp_window(current_a, learning_rate)
+            wA, Ai = freqz([1], windowed_a, worN=N)
             learning_rate += delta_learning_rate
         else:
-            wA, Ai = freqz([1], current_a, worN=N) # 1 / A(z)
+            wA, Ai = freqz([1], current_a, worN=N)  # 1 / A(z)
+
         if debug:
             A = np.reciprocal(Ai)
-            plot_spectrum_overlay(A,Ai,wA,"A and 1/A clipped", "A", "1/A")
+            plot_spectrum_overlay(A, Ai, wA, "A and 1/A", "A", "1/A")
 
         # Update H_local and U_local using the original H and U
         H_local = H * Ai
