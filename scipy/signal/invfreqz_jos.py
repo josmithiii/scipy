@@ -35,11 +35,40 @@ def invfreqz(
         weight: np.ndarray | None = None,
         omega: np.ndarray | None = None,
         n_iter: int | None = 0,
-        tolr: float | None = 1e-8,
+        tol_iter: float | None = 1e-8,
         b_0: np.ndarray | None = None,
         a_0: np.ndarray | None = None,
         debug: bool | None = True
 ) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Parameters ("opt" means "optional"):
+    H (array): Desired frequency response, uniformly sampled,
+               including dc and pi, with no negative frequencies.
+    n_zeros (int): Number of zeros in the filter.
+    n_poles (int): Number of poles in the filter.
+    U (array, opt): Input frequency response (can be used for weighting).
+    n_iter (int, opt): Max number of iterations of the Steiglitz-McBride algorithm.
+    tol_iter (float, opt): Tolerance on the norm of the coefficients changes
+                           at which to halt Steiglitz-McBride iterations.
+    b_0 (array, opt): Initial numerator coefficients. Default is zeros.
+    a_0 (array, opt): Initial denominator coefficients. Default is [1, zeros].
+    zero_clip (float): Threshold to avoid divide by zero in frequency response inverse.
+                       Default is 1e-7.
+    stabilize (bool): When true, reflect any unstable poles
+                      inside the unit circle if they go unstable.
+    initial_learning_rate (float): learning rate climbs from here to 1
+                      over max_iterations. Set to 1 to disable this feature.
+    debug (bool): When True, enables plotting and additional print statements.
+                  Default is True.
+
+    Returns:
+    b (array): Numerator coefficients of the designed filter.
+    a (array): Denominator coefficients of the designed filter.
+
+    For maximum efficiency, the number of frequency points (length of
+    H and U) should be Nfft/2+1, where Nfft is a power of 2 (FFT size
+    used herein).
+    """
 
     if n_iter == 0:
         return fast_equation_error_filter_design(H, n_zeros, n_poles, U, omega,
@@ -47,7 +76,7 @@ def invfreqz(
     else:
         return fast_steiglitz_mcbride_filter_design(
             H, U, n_zeros, n_poles,
-            max_iterations=n_iter, tol_iteration_change=tolr, b_0=None, a_0=None,
+            max_iterations=n_iter, tol_iteration_change=tol_iter, b_0=None, a_0=None,
             zero_clip=1e-7, stabilize=True, initial_learning_rate=1.0, debug=debug )
 
 
