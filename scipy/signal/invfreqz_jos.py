@@ -38,7 +38,7 @@ def invfreqz(
         tol_iter: float | None = 1e-8,
         b_0: np.ndarray | None = None,
         a_0: np.ndarray | None = None,
-        debug: bool | None = True
+        debug: bool | None = False
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Parameters ("opt" means "optional"):
@@ -304,7 +304,8 @@ def exp_window(A, r):
 def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=5,
                                          tol_iteration_change=1e-7, b_0=None, a_0=None,
                                          zero_clip=1e-7, stabilize=True,
-                                         initial_learning_rate=1, debug=True):
+                                         initial_learning_rate=1,
+                                         debug=True, verbose=True):
     """Frequency-domain Steiglitz-McBride algorithm.
 
     The Steiglitz-McBride algorithm converts an equation-error filter
@@ -331,8 +332,8 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
                       inside the unit circle if they go unstable.
     initial_learning_rate (float): learning rate climbs from here to 1
                       over max_iterations. Set to 1 to disable this feature.
-    debug (bool): When True, enables plotting and additional print statements.
-                  Default is True.
+    debug (bool): Enables plotting and additional print statements.
+    verbose (bool): Prints convergence progress each iteration.
 
     Returns:
     b (array): Numerator coefficients of the designed filter.
@@ -387,23 +388,27 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
         # Stabilize the filter if required
         if stabilize:
             new_a, _, _ = invert_unstable_roots(new_a)
-            print(f"{new_a=}")
+            if debug:
+                print(f"After inverting unstable roots, {new_a=}")
 
         # Compute the norm of the change in coefficients
         if debug:
             freqz(new_b, new_a)
-            zplane(new_b, new_a)
+            zplane(new_b, new_a, f"Pole-Zero Plot, Iteration {iterations}")
         norm_change = norm(new_a - current_a) + norm(new_b - current_b)
-        print(f"norm_change in a at iteration {iterations}: {norm_change}")
+        if debug or verbose:
+            print(f"norm_change in a at iteration {iterations}: {norm_change}")
 
         # Check for convergence
         if norm_change < tol_iteration_change * norm(current_a):
-            print(f"""
-            Stopping tolerance {tol_iteration_change} reached
-            after {iterations + 1} iterations.""")
+            if debug or verbose:
+                print(f"""
+                Stopping tolerance {tol_iteration_change} reached
+                after {iterations + 1} iterations.""")
             break
         if iterations >= max_iterations:
-            print(f"Reached maximum of {iterations} iterations.")
+            if debug or verbose:
+                print(f"Reached maximum of {iterations} iterations.")
             break
 
         # Update current coefficients
@@ -421,18 +426,18 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
         else:
             wA, Ai = freqz([1], current_a, worN=N)  # 1 / A(z)
 
-        if debug:
-            A = np.reciprocal(Ai)
-            plot_spectrum_overlay(A, Ai, wA, "A and 1/A", "A", "1/A")
+        # if debug:
+        #     A = np.reciprocal(Ai)
+        #     plot_spectrum_overlay(A, Ai, wA, "A and 1/A", "A", "1/A")
 
-        # Update H_local and U_local using the original H and U
+        # Update H_local and U_local using the original H and U and new A inverse:
         H_local = H * Ai
         U_local = U * Ai
 
-        if debug:
+        if debug or verbose:
             _, Hh = freqz(new_b, new_a, worN=w)
             title = f"Steiglitz-McBride Iteration {iterations}"
-            err_freq_resp = plot_spectrum_overlay(H, Hh, w, title, "Desired",
+            err_freq_resp = plot_spectrum_overlay(H, Hh, w / np.pi, title, "Desired",
                                                   f"Iteration {iterations}",
                                                   log_freq=False)
             print(f"{title}: norm(frequency_response_err) = {err_freq_resp}")

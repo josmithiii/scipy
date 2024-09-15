@@ -159,8 +159,9 @@ def plot_spectrum_overlay(spec1_lin, spec2_lin, w, title, lab1, lab2, log_freq=F
         plt.plot(w, spec2_db, 'r--', label=lab2)
     plt.title(f'{title} - Magnitude Response')
     plt.ylabel('Magnitude [dB]')
-    max_db = np.max(np.maximum(spec1_db, spec2_db))
-    plt.ylim(min_db, max_db)  # Set y-axis limits
+    max_db_plot = np.max(np.maximum(spec1_db, spec2_db))
+    min_db_plot = np.min(np.minimum(spec1_db, spec2_db))
+    plt.ylim(min_db_plot, max_db_plot)
     plt.legend()
     plt.grid(True)
 
@@ -242,7 +243,7 @@ def plot_frequency_response_fit(b_orig, a_orig, b_est, a_est, w, title,
     return norm_of_difference
 
 
-def zplane(b, a):
+def zplane(b, a, title="Pole-Zero Plot"):
     """
     Plot the complex z-plane given a transfer function.
 
@@ -282,7 +283,7 @@ def zplane(b, a):
     # Add labels and title
     ax.set_xlabel('Real')
     ax.set_ylabel('Imaginary')
-    ax.set_title('Pole-Zero Plot')
+    ax.set_title(title)
     ax.legend()
 
     # Add grid

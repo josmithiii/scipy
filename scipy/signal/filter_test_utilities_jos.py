@@ -61,11 +61,12 @@ def upsample_array(arr, factor):
     upsampled[-1] = arr[-1]
 
     # Calculate the intermediate points
-    for i in range(1, arr.size - 1):
-        start_idx = i * factor
-        end_idx = (i + 1) * factor
-        upsampled[start_idx:end_idx] = np.linspace(arr[i], arr[i+1],
-                                                   factor, endpoint=False)
+    for i in range(arr.size - 1):
+        start_idx = i * factor  # Starting index for this interval
+        end_idx = (i + 1) * factor  # Ending index for this interval
+        # Generate `factor + 1` points between arr[i] and arr[i+1],
+        # then take all but the first and last to fill the interval
+        upsampled[start_idx:end_idx] = np.linspace(arr[i], arr[i+1], factor + 1)[0:-1]
 
     return upsampled
 
@@ -87,8 +88,9 @@ def min_phase_spectrum(spec_lin_whole, n_fft, debug=False):
                           title="DB Magnitude Spectrum Before Upsampling")
         # spec_db_whole_upsampled = resample(spec_db_whole, n_fft, domain='freq')
         print("*** USING SIMPLE LINEAR-INTERPOLATION FOR UPSAMPLING ***")
+    # breakpoint()
     n_spec_0 = n_fft_0 // 2 + 1 # dc to fs/2 inclusive
-    spec_db_half = spec_db_whole[ : n_spec_0 ] 
+    spec_db_half = spec_db_whole[ : n_spec_0 ]
     upsampling_factor = n_fft // n_fft_0
     spec_db_half_upsampled = upsample_array(spec_db_half,
                                             upsampling_factor ) # endpoints fixed
@@ -162,18 +164,18 @@ def check_roots_stability(roots, tol=1e-7):
     return num_unstable, num_marginally_stable
 
 
-def test_invfreqz(b, a, n_bh, n_ah, N, title, log_freq=False, n_iter=0):
+def test_invfreqz(b, a, n_bh, n_ah, N, title, log_freq=False, n_iter=0, debug=False):
     print("--------------------------------------------------------------------------------")
-    err = test_eqnerr(b, a, n_bh, n_ah, N, title, log_freq=log_freq)
+    err = test_eqnerr(b, a, n_bh, n_ah, N, title, log_freq=log_freq, debug=debug)
     if n_iter > 0:
         maybe_stop()
         print("----------------------------")
         err += test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title,
-                                      n_iter=n_iter, log_freq=log_freq)
+                                      n_iter=n_iter, log_freq=log_freq, debug=debug)
     return err
 
 
-def test_eqnerr(b, a, n_bh, n_ah, N, title, log_freq=False):
+def test_eqnerr(b, a, n_bh, n_ah, N, title, log_freq=False, debug=False):
     w = np.linspace(0, np.pi, int(N+1))
     w2,H = freqz(b, a, worN=w)
     if (not np.allclose(w,w2)):
@@ -210,7 +212,8 @@ def test_eqnerr(b, a, n_bh, n_ah, N, title, log_freq=False):
     return error_freq_resp
 
 
-def test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title, n_iter=5, log_freq=False):
+def test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title, n_iter=5,
+                           log_freq=False, debug=False):
     print("Steiglitz McBride:")
 
     w = np.linspace(0, np.pi, int(N+1))

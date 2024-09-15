@@ -113,7 +113,8 @@ if test_num == 5 or test_num == 0:
     label = f"{test_num}: Pathological unstable max-phase target,"
     f" order {order}, n_freqs {n_freqs}"
     total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_freqs, label)
-    total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_freqs, label, n_iter=5)
+    total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_freqs, label,
+                                 n_iter=30, debug=False)
 
 if test_num == 6 or test_num == 0:
     N = 1024
