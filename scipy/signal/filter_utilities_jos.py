@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def check_roots_stability(roots, tol=1e-7):
     """
     Check the stability of roots.
