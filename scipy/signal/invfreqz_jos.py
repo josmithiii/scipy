@@ -26,59 +26,85 @@ from scipy.linalg import toeplitz, solve, norm
 from scipy.signal import freqz
 from filter_utilities_jos import check_roots_stability
 from filter_plot_utilities_jos import zplane, plot_spectrum_overlay
+from typing import Literal
 
 def invfreqz(
-        H: np.ndarray,
-        n_zeros: int,
-        n_poles: int,
-        U: np.ndarray | None = None,
-        weight: np.ndarray | None = None,
-        omega: np.ndarray | None = None,
-        n_iter: int | None = 0,
-        tol_iter: float | None = 1e-8,
-        b_0: np.ndarray | None = None,
-        a_0: np.ndarray | None = None,
-        debug: bool | None = False
+    H: np.ndarray,
+    n_zeros: int,
+    n_poles: int,
+    U: np.ndarray   | None = None,
+    weight: np.ndarray | None = None,
+    omega: np.ndarray | None = None,
+    method: Literal['equation_error', 'prony', 'pade_prony'] = 'equation_error',
+    method_iter: Literal['gauss_newton', 'steiglitz_mcbride'] = 'gauss_newton',
+    n_iter: int     | None = 0,
+    tol_iter: float | None = 1e-8,
+    b_0: np.ndarray | None = None,
+    a_0: np.ndarray | None = None,
+    min_phase: bool | None = False,
+    stabilize: bool | None = False,
+    lr0: float      | None = 1.0,
+    verbose: bool   | None = False,
+    debug: bool     | None = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Parameters ("opt" means "optional"):
-    H (array): Desired frequency response, uniformly sampled,
-               including dc and pi, with no negative frequencies.
-    n_zeros (int): Number of zeros in the filter.
-    n_poles (int): Number of poles in the filter.
-    U (array, opt): Input frequency response (can be used for weighting).
-    n_iter (int, opt): Max number of iterations of the Steiglitz-McBride algorithm.
-    tol_iter (float, opt): Tolerance on the norm of the coefficients changes
-                           at which to halt Steiglitz-McBride iterations.
-    b_0 (array, opt): Initial numerator coefficients. Default is zeros.
-    a_0 (array, opt): Initial denominator coefficients. Default is [1, zeros].
-    zero_clip (float): Threshold to avoid divide by zero in frequency response inverse.
-                       Default is 1e-7.
-    stabilize (bool): When true, reflect any unstable poles
-                      inside the unit circle if they go unstable.
-    initial_learning_rate (float): learning rate climbs from here to 1
-                      over max_iterations. Set to 1 to disable this feature.
-    debug (bool): When True, enables plotting and additional print statements.
-                  Default is True.
+        H (array): Desired frequency response, uniformly sampled,
+                   including dc and pi, with no negative frequencies.
+        n_zeros (int): Number of zeros in the filter.
+        n_poles (int): Number of poles in the filter.
+        U (array, opt): Input frequency response (can be used for weighting).
+        verbose (bool): Enables plotting and additional print statements.
+        debug (bool): Enables plotting and additional print statements.
+        n_iter (int, opt): Max number of iterations to use in method method_iter.
+        method: 'equation_error' [default], 'prony', or 'pade_prony' [n_iter=0].
+        method_iter: 'gauss_newton' [default] or 'steiglitz_mcbride' [n_iter>0].
+
+    The following additional [optional] parameters only pertain to n_iter > 0:
+        tol_iter (float, opt): Tolerance on the norm of the coefficients changes
+                               at which to halt Steiglitz-McBride iterations.
+        b_0 (array, opt): Initial numerator coefficients. [Zeros default]
+        a_0 (array, opt): Initial denominator coefficients. Default is [1, zeros].
+        min_phase (bool, opt): Convert H to minimum-phase first thing. Default is False.
+        zero_clip (float): Threshold to avoid divide by 0 where needed. [1e-7]
+        stabilize (bool): Reflect any unstable poles inside the unit circle.
+                          [Default is False when n_iter is 0, else True]
+        lr0 (float): Initial learning rate. Climbs from here to 1 over n_iter.
+                     Setting to 1 to disables this feature.
 
     Returns:
-    b (array): Numerator coefficients of the designed filter.
-    a (array): Denominator coefficients of the designed filter.
+        b (array): Numerator coefficients of the designed filter.
+        a (array): Denominator coefficients of the designed filter.
 
-    For maximum efficiency, the number of frequency points (length of
-    H and U) should be Nfft/2+1, where Nfft is a power of 2 (FFT size
-    used herein).
+    Note:
+        For maximum efficiency, the number of frequency points (length of
+        H and U) should be Nfft/2+1, where Nfft is a power of 2 (FFT size
+        used herein).
     """
 
     if n_iter == 0:
-        return fast_equation_error_filter_design(H, n_zeros, n_poles, U, omega,
-                                                 debug=debug)
+        if method == 'prony':
+            print ('return prony here')
+        elif method == 'pade_prony':
+            print ('return pade_prony here')
+        else:
+            if method != 'equation_error':
+                print(f'*** invfreqz: unknown method "{method}" - '
+                      'choosing equation_error')
+            return fast_equation_error_filter_design(H, n_zeros, n_poles, U, omega,
+                                                     debug=debug, verbose=verbose)
     else:
-        return fast_steiglitz_mcbride_filter_design(
-            H, U, n_zeros, n_poles,
-            max_iterations=n_iter, tol_iteration_change=tol_iter, b_0=None, a_0=None,
-            zero_clip=1e-7, stabilize=True, initial_learning_rate=1.0, debug=debug )
-
+        if method_iter == 'steiglitz_mcbride':
+            return fast_steiglitz_mcbride_filter_design(
+                H, U, n_zeros, n_poles,
+                n_iter=n_iter, tol_iter=tol_iter, b_0=None, a_0=None,
+                zero_clip=1e-7, stabilize=stabilize, lr0=lr0,
+                verbose=verbose, debug=debug )
+        else:
+            if method_iter != 'gauss_newton':
+                print(f'*** invfreqz: unknown iterative method "{method_iter}" - '
+                      'choosing gauss_newton')
+            print ('return gauss_newton here')
 
 def toeplitz_circulant_window(x, n_window):
     """
@@ -301,10 +327,10 @@ def exp_window(A, r):
     return A * window
 
 
-def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=5,
-                                         tol_iteration_change=1e-7, b_0=None, a_0=None,
+def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
+                                         tol_iter=1e-8, b_0=None, a_0=None,
                                          zero_clip=1e-7, stabilize=True,
-                                         initial_learning_rate=1,
+                                         lr0=1,
                                          debug=True, verbose=True):
     """Frequency-domain Steiglitz-McBride algorithm.
 
@@ -321,8 +347,8 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
     U (array): Input frequency response (can be used for weighting).
     n_zeros (int): Number of zeros in the filter.
     n_poles (int): Number of poles in the filter.
-    max_iterations (int): Max number of iterations of the Steiglitz-McBride algorithm.
-    tol_iteration_change (float): Tolerance on the norm of the coefficients changes
+    n_iter (int): Max number of iterations of the Steiglitz-McBride algorithm.
+    tol_iter (float): Tolerance on the norm of the coefficients changes
                                   at which to halt Steiglitz-McBride iterations.
     b_0 (array, optional): Initial numerator coefficients. Default is zeros.
     a_0 (array, optional): Initial denominator coefficients. Default is [1, zeros].
@@ -330,8 +356,8 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
                        Default is 1e-7.
     stabilize (bool): When true, reflect any unstable poles
                       inside the unit circle if they go unstable.
-    initial_learning_rate (float): learning rate climbs from here to 1
-                      over max_iterations. Set to 1 to disable this feature.
+    lr0 (float): learning rate climbs from here to 1
+                      over n_iter. Set to 1 to disable this feature.
     debug (bool): Enables plotting and additional print statements.
     verbose (bool): Prints convergence progress each iteration.
 
@@ -361,8 +387,8 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
     H_local = H.copy()
     U_local = U.copy()
 
-    learning_rate = initial_learning_rate
-    delta_learning_rate = (1.0 - initial_learning_rate) / max_iterations
+    learning_rate = lr0
+    delta_learning_rate = (1.0 - lr0) / n_iter
 
     initial_coeffs_used = False
 
@@ -400,13 +426,13 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, max_iterations=
             print(f"norm_change in a at iteration {iterations}: {norm_change}")
 
         # Check for convergence
-        if norm_change < tol_iteration_change * norm(current_a):
+        if norm_change < tol_iter * norm(current_a):
             if debug or verbose:
                 print(f"""
-                Stopping tolerance {tol_iteration_change} reached
+                Stopping tolerance {tol_iter} reached
                 after {iterations + 1} iterations.""")
             break
-        if iterations >= max_iterations:
+        if iterations >= n_iter:
             if debug or verbose:
                 print(f"Reached maximum of {iterations} iterations.")
             break
@@ -485,11 +511,10 @@ if __name__ == "__main__":
     print("--------------------------------------------------------------")
     print("Steiglitz McBride:")
     bh, ah = fast_steiglitz_mcbride_filter_design(H, U, n_b, n_a,
-                                                  max_iterations=5,
-                                                  tol_iteration_change=1e-12,
-                                                  b_0=bh, a_0=ah,
-                                                  initial_learning_rate=0.1,
-                                                  debug=True )
+                                                  n_iter=30,
+                                                  tol_iter=1e-8,
+                                                  b_0=bh, a_0=ah, lr0=1,
+                                                  debug=False )
     print(f"\n{title}:")
     print("Original coefficients:")
     print(f"b = {b}")

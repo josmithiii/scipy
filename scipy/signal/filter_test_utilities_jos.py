@@ -166,12 +166,11 @@ def check_roots_stability(roots, tol=1e-7):
 
 def test_invfreqz(b, a, n_bh, n_ah, N, title, log_freq=False, n_iter=0, debug=False):
     print("--------------------------------------------------------------------------------")
-    err = test_eqnerr(b, a, n_bh, n_ah, N, title, log_freq=log_freq, debug=debug)
-    if n_iter > 0:
-        maybe_stop()
-        print("----------------------------")
-        err += test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title,
-                                      n_iter=n_iter, log_freq=log_freq, debug=debug)
+    if n_iter == 0:
+        err = test_eqnerr(b, a, n_bh, n_ah, N, title, log_freq=log_freq, debug=debug)
+    else:
+        err = test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title, n_iter=n_iter,
+                                     log_freq=log_freq, debug=debug)
     return err
 
 
@@ -222,9 +221,9 @@ def test_steiglitz_mcbride(b, a, n_bh, n_ah, N, title, n_iter=5,
 
     bh, ah = fast_steiglitz_mcbride_filter_design(
         H, U, n_bh, n_ah,
-        max_iterations=n_iter,
-        tol_iteration_change=1e-12,
-        initial_learning_rate=0.1)
+        n_iter=n_iter,
+        tol_iter=1e-12,
+        lr0=0.1)
     print(f"\n{title}:")
     print("Original coefficients:")
     print(f"b = {b}")
