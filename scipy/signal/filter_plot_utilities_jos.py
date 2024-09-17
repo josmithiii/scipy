@@ -159,7 +159,7 @@ def plot_spectrum_overlay(spec1_lin, spec2_lin, w, title, lab1, lab2, log_freq=F
         plt.plot(w, spec2_db, 'r--', label=lab2)
     plt.title(f'{title} - Magnitude Response')
     plt.ylabel('Magnitude [dB]')
-    max_db_plot = np.max(np.maximum(spec1_db, spec2_db))
+    max_db_plot = 1.1 * np.max(np.maximum(spec1_db, spec2_db))
     min_db_plot = np.min(np.minimum(spec1_db, spec2_db))
     plt.ylim(min_db_plot, max_db_plot)
     plt.legend()
@@ -183,10 +183,34 @@ def plot_spectrum_overlay(spec1_lin, spec2_lin, w, title, lab1, lab2, log_freq=F
     plt.tight_layout()
     return norm(spec1_lin - spec2_lin) / norm(spec1_lin)
 
+# This crock is a direct result of letting Claude 3.5 write my initial tests.
+# There was nothing wrong with what it did, but it chose limiting assumptions
+# that I am now working around.  Maybe the prompt should emphasize general
+# utility.
+def get_freq_response(b, a, n_spec):
+    have_truth = True
+    if len(b) == n_spec and np.isscalar(a) and a == 1:
+        print("get_freq_response: Assuming b is the DESIRED SPECTRUM")
+        have_truth = False
+        
+    w = np.linspace(0, np.pi, int(n_spec))
+    if have_truth:
+        w2,H = freqz(b, a, worN=w)
+        if (not np.allclose(w,w2)):
+            print("*** freqz is not computing frequencies as expected")
+    else:
+        w2 = w
+        H = b
+
+    return w2, H, have_truth
+
+
 def plot_frequency_response_fit(b_orig, a_orig, b_est, a_est, w, title,
                                 show_plot=False, log_freq=False):
     """Plot frequency-response fit of original and estimated filters."""
-    wo, h_orig = freqz(b_orig, a_orig, worN=w)
+    n_spec = len(w)
+    wo, h_orig, have_truth = get_freq_response(b_orig, a_orig, n_spec)
+    # freqz(b_orig, a_orig, worN=w)
     we, h_est = freqz(b_est, a_est, worN=w)
 
     norm_of_difference = norm(h_orig - h_est) / norm(h_orig)
@@ -205,7 +229,7 @@ def plot_frequency_response_fit(b_orig, a_orig, b_est, a_est, w, title,
     h_est_db = 20 * np.log10(np.maximum(np.abs(h_est), 10**(min_db/20)))
     max_db = np.max(np.maximum(h_orig_db, h_est_db))
     min_db_plot = np.min(np.minimum(h_orig_db, h_est_db))
-    max_db_plot = 5 * math.ceil(max_db / 5)
+    max_db_plot = 1.1 * 5 * math.ceil(max_db / 5)
 
     # Plot Magnitude Response
     if log_freq:

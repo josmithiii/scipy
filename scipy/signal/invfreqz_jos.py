@@ -24,6 +24,7 @@ The comments were also improved and extended.
 import numpy as np
 from scipy.linalg import toeplitz, solve, norm
 from scipy.signal import freqz
+from spectrum_utilities_jos import append_flip_conjugate
 from filter_utilities_jos import check_roots_stability
 from filter_plot_utilities_jos import zplane, plot_spectrum_overlay
 from typing import Literal
@@ -80,6 +81,9 @@ def invfreqz(
         For maximum efficiency, the number of frequency points (length of
         H and U) should be Nfft/2+1, where Nfft is a power of 2 (FFT size
         used herein).
+
+    .. versionadded:: 1.14.2
+    
     """
 
     if n_iter == 0:
@@ -135,28 +139,6 @@ def toeplitz_circulant_window(x, n_window):
     return matrix
 
 
-# Return a complete spectrum given the non-negative-frequency portion,
-# including dc and fs/2:
-def append_flip_conjugate(X, is_magnitude=False):
-    """
-    Append the flipped conjugate of the input array, excluding the
-    first and last elements (normally dc and fs/2) in what is flipped and appended.
-
-    Parameters:
-    X (np.ndarray): Input array, typically a spectrum over [0,pi], inclusive.
-
-    Returns:
-    np.ndarray: Array with appended flipped conjugate interior, i.e., "[0,pi,pi-,0+]".
-
-    """
-    # return        np.concatenate([X, np.conj(X[-2:0:-1])])
-    # equivalent to np.concatenate([X, np.conj(np.flip(X[1:-1]))])
-    flip_interior = np.flip(X[1:-1]) # negative-frequency part
-    if is_magnitude:
-        flip_conj_interior = flip_interior # negative-frequency part
-    else:
-        flip_conj_interior = np.conj(flip_interior)
-    return np.concatenate([X, flip_conj_interior]) # complete spectrum
 
 
 def check_real(x: np.ndarray, tol: float = 1e-8) -> np.ndarray:
