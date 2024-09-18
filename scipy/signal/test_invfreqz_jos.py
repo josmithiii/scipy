@@ -1,4 +1,3 @@
-
 """
 Module/script name: test_invfreqz_jos.py
 Temporary test file for invfreqz proposal development.
@@ -25,13 +24,11 @@ import numpy as np
 from scipy.signal import butter, cheby1, freqz
 
 from spectrum_plot_utilities_jos import dB, plot_mag_spectrum
-from spectrum_utilities_jos import min_phase_half_spectrum
+from spectrum_utilities_jos import min_phase_half_spectrum, append_flip_conjugate
 from filter_test_utilities_jos import test_invfreqz
-            # , test_eqnerr, test_steiglitz_mcbride, test_prony, test_pade_prony
-
-from invfreqz_jos import append_flip_conjugate
 
 # pytest --cache-clear
+# Testing: cd /w/scipy && pytest --cache-clear
 
 # import pdb
 # pdb.set_trace()
@@ -348,7 +345,7 @@ def model_incomplete_rolloff(power, test_num, title=None, n_freq=1024):
                                                   n_fft=n_fft) #, half=False)
     rolloff_mp_lin_whole = append_flip_conjugate(rolloff_mp_lin_half)
     b_rolloff = np.fft.ifft(rolloff_mp_lin_whole)
-    a_rolloff = np.ones(1)
+    a_rolloff = 1 # np.ones(1)
     n_b = 4
     n_a = 4
     label = f"{test_num}: 1/f^{power} rolloff filter, {n_a=} {n_b=}, n_freq {n_freq}"
@@ -356,6 +353,8 @@ def model_incomplete_rolloff(power, test_num, title=None, n_freq=1024):
                           n_freq, label, log_freq=True)
     error2 = test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
                            n_freq, label, log_freq=True, n_iter=5)
+    print(f"---\nEquation-Error norm = {error1}")
+    print(f"Output-Error norm = {error2}")
     return error1 + error2
 
 if test_num == 33 or test_num == 0:

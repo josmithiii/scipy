@@ -148,3 +148,110 @@ def zplane(b, a, title="Pole-Zero Plot"):
 
     # Show the plot
     plt.show()
+
+
+def plot_filter_analysis(b_orig, a_orig, b_est, a_est, w, title,
+                         show_plot=True, log_freq=False):
+    """
+    Plot frequency-response fit of original and estimated filters,
+    along with the pole-zero plot for both filters.
+    """
+    fig = plt.figure(figsize=(18, 10))
+    
+    # Frequency response plots
+    n_spec = len(w)
+    wo, h_orig, have_truth = get_freq_response(b_orig, a_orig, n_spec)
+    we, h_est = freqz(b_est, a_est, n_spec)
+
+    # Magnitude Response
+    ax1 = fig.add_subplot(221)
+    min_db = -80
+    h_orig_db = 20 * np.log10(np.maximum(np.abs(h_orig), 10**(min_db/20)))
+    h_est_db = 20 * np.log10(np.maximum(np.abs(h_est), 10**(min_db/20)))
+    
+    if log_freq:
+        ax1.semilogx(w, h_orig_db, 'b', label='Original')
+        ax1.semilogx(w, h_est_db, 'r--', label='Estimated')
+    else:
+        ax1.plot(w, h_orig_db, 'b', label='Original')
+        ax1.plot(w, h_est_db, 'r--', label='Estimated')
+    
+    ax1.set_title(f'{title} - Magnitude Response')
+    ax1.set_ylabel('Magnitude [dB]')
+    ax1.legend()
+    ax1.grid(True)
+    
+    # Phase Response
+    ax2 = fig.add_subplot(223)
+    if log_freq:
+        ax2.semilogx(w, np.unwrap(np.angle(h_orig)), 'b', label='Original')
+        ax2.semilogx(w, np.unwrap(np.angle(h_est)), 'r--', label='Estimated')
+    else:
+        ax2.plot(w, np.unwrap(np.angle(h_orig)), 'b', label='Original')
+        ax2.plot(w, np.unwrap(np.angle(h_est)), 'r--', label='Estimated')
+    
+    ax2.set_title(f'{title} - Phase Response')
+    ax2.set_ylabel('Phase [rad]')
+    ax2.set_xlabel('Frequency [rad/sample]')
+    ax2.legend()
+    ax2.grid(True)
+    
+    # Pole-Zero plots
+    def plot_pz(b, a, ax, label):
+        breakpoint()
+        p = np.zeros(1) if np.isscalar(a) else np.roots(a)
+            # Actually there are len(b)-1) zeros, but let's not plot them all
+        z = np.roots(b)
+        
+        # Plot the unit circle
+        unit_circle = plt.Circle((0,0), 1, fill=False, color='gray', ls='dashed')
+        ax.add_patch(unit_circle)
+        
+        # Plot zeros and poles
+        ax.scatter(z.real, z.imag, marker='o', s=100, color='b', label=f'{label} Zeros')
+        ax.scatter(p.real, p.imag, marker='x', s=100, color='r', label=f'{label} Poles')
+        
+        # Set the limits
+        r = 1.5 * max(np.max(np.abs(z)), np.max(np.abs(p)), 1)
+        ax.set_xlim((-r, r))
+        ax.set_ylim((-r, r))
+        
+        # Make the plot square
+        ax.set_aspect('equal', adjustable='box')
+        
+        ax.set_xlabel('Real')
+        ax.set_ylabel('Imaginary')
+        ax.legend()
+        ax.grid(True)
+    
+    if have_truth:
+        # Original filter pole-zero plot
+        ax3 = fig.add_subplot(222)
+        plot_pz(b_orig, a_orig, ax3, "Original")
+        ax3.set_title(f'{title} - Original Filter Pole-Zero Plot')
+    
+    # Estimated filter pole-zero plot
+    ax4 = fig.add_subplot(224)
+    plot_pz(b_est, a_est, ax4, "Estimated")
+    ax4.set_title(f'{title} - Estimated Filter Pole-Zero Plot')
+    
+    plt.tight_layout()
+    
+    if show_plot:
+        plt.show()
+    
+    return fig
+
+# Example usage
+if __name__ == "__main__":
+    # Example filter coefficients
+    b_orig = [1, -0.5, 0.25]
+    a_orig = [1, -0.7, 0.1]
+    b_est = [0.9, -0.45, 0.2]
+    a_est = [1, -0.65, 0.08]
+    
+    # Generate frequency points
+    w = np.linspace(0, np.pi, 1000)
+    
+    # Call the function
+    plot_filter_analysis(b_orig, a_orig, b_est, a_est, w, "Filter Analysis Example")    
