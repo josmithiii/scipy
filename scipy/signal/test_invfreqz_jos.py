@@ -25,7 +25,8 @@ import numpy as np
 from scipy.signal import butter, cheby1, freqz
 
 from filter_plot_utilities_jos import dB, plot_mag_spectrum
-from filter_test_utilities_jos import test_invfreqz, min_phase_half_spectrum
+from spectrum_utilities_jos import min_phase_half_spectrum
+from filter_test_utilities_jos import test_invfreqz
             # , test_eqnerr, test_steiglitz_mcbride, test_prony, test_pade_prony
 
 from invfreqz_jos import append_flip_conjugate
@@ -308,18 +309,18 @@ def model_matched_rolloff(power, test_num, title):
                                  n_freq, label, log_freq=True)
     return error
 
-if test_num == 8 or test_num == 0:
+if test_num == 30 or test_num == 0:
     title = "1/f rolloff"
     print(title)
     power = 1.0 # model-matched case
     total_error += model_matched_rolloff(power, test_num, title)
 
-if test_num == 9 or test_num == 0:
+if test_num == 31 or test_num == 0:
     title = "1/f^2 rolloff"
     power = 2.0 # model-matched case
     total_error += model_matched_rolloff(power, test_num, title)
 
-if test_num == 10 or test_num == 0:
+if test_num == 32 or test_num == 0:
     title = "1/f^3 rolloff"
     power = 3.0 # model-matched case
     total_error += model_matched_rolloff(power, test_num, title)
@@ -357,11 +358,11 @@ def model_incomplete_rolloff(power, test_num, title=None, n_freq=1024):
                            n_freq, label, log_freq=True, n_iter=5)
     return error1 + error2
 
-if test_num == 11 or test_num == 0:
+if test_num == 33 or test_num == 0:
     power = 0.5
     total_error += model_incomplete_rolloff(power, test_num)
 
-if test_num == 12 or test_num == 0:
+if test_num == 34 or test_num == 0:
     power = 1.5
     total_error += model_incomplete_rolloff(power, test_num)
 

@@ -23,12 +23,8 @@ from scipy.linalg import norm
 from invfreqz_jos import (fast_equation_error_filter_design,
                           fast_steiglitz_mcbride_filter_design,
                           invert_unstable_roots)
-from filter_plot_utilities_jos import (plot_frequency_response_fit, # plot_mag_spectrum,
-                                       # plot_signal, # plot_spectrum_overlay,
-                                       get_freq_response)
+from filter_plot_utilities_jos import (plot_frequency_response_fit, get_freq_response)
 from filter_utilities_jos import (check_roots_stability)
-# min_phase_spectrum, min_phase_half_spectrum,
-#                                  , upsample_array)
 
 def maybe_stop():
     #breakpoint() # uncomment to stop
