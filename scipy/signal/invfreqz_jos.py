@@ -26,7 +26,8 @@ from scipy.linalg import toeplitz, solve, norm
 from scipy.signal import freqz
 from spectrum_utilities_jos import append_flip_conjugate
 from filter_utilities_jos import check_roots_stability
-from filter_plot_utilities_jos import zplane, plot_spectrum_overlay
+from filter_plot_utilities_jos import zplane
+from spectrum_plot_utilities_jos import plot_spectrum_overlay
 from typing import Literal
 
 def invfreqz(

@@ -24,7 +24,7 @@ import numpy as np
 # from scipy import signal
 from scipy.signal import butter, cheby1, freqz
 
-from filter_plot_utilities_jos import dB, plot_mag_spectrum
+from spectrum_plot_utilities_jos import dB, plot_mag_spectrum
 from spectrum_utilities_jos import min_phase_half_spectrum
 from filter_test_utilities_jos import test_invfreqz
             # , test_eqnerr, test_steiglitz_mcbride, test_prony, test_pade_prony
