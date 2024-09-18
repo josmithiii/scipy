@@ -23,7 +23,7 @@ import numpy as np
 # from scipy import signal
 from scipy.signal import butter, cheby1, freqz
 
-from spectrum_plot_utilities_jos import dB, plot_mag_spectrum
+# from spectrum_plot_utilities_jos import dB, plot_mag_spectrum
 from spectrum_utilities_jos import min_phase_half_spectrum # , append_flip_conjugate
 from filter_test_utilities_jos import test_invfreqz
 
@@ -293,9 +293,10 @@ def model_matched_rolloff(power, test_num, title):
     rolloff_denom = self_convolve([1, -pole], power)
     print(f"{rolloff_denom=}")
     _,rolloff_mp = freqz( (1-pole) ** power, rolloff_denom, worN=wT)
-    plot_mag_spectrum(dB(rolloff_mp),
-                      title=f"{int(power)}-pole magnitude frequency response",
-                      mag_units='dB')
+    # plot_mag_spectrum(dB(rolloff_mp),
+    #                   title=f"{int(power)}-pole magnitude frequency response",
+    #                   mag_units='dB')
+
     # previous hack:
     # rolloff_mp_lin_whole = append_flip_conjugate(rolloff_mp_lin_half)
     # b_rolloff = np.fft.ifft(rolloff_mp_lin_whole)
@@ -338,12 +339,12 @@ def model_incomplete_rolloff(power, test_num, title=None, n_spec=1025):
                                        rolloff_lin_half)) # [1, 1/(n+1)^p], n=0,1,...
 
     # plot it:
-    wT = np.linspace(0, np.pi, n_spec)
-    rolloff_db_half = dB(rolloff_lin_half)
-    plot_mag_spectrum(rolloff_db_half, wT=wT,
-                      title=f"{title} magnitude frequency response, "
-                      "pre-interpolation",
-                      mag_units='dB')
+    # wT = np.linspace(0, np.pi, n_spec)
+    # rolloff_db_half = dB(rolloff_lin_half)
+    # plot_mag_spectrum(rolloff_db_half, wT=wT,
+    #                   title=f"{title} magnitude frequency response, "
+    #                   "pre-interpolation",
+    #                   mag_units='dB')
     n_fft = 4 * (n_spec-1) # for spectral interpolation
     rolloff_mp_lin_half = min_phase_half_spectrum(rolloff_lin_half,
                                                   n_fft=n_fft) #, half=False)
