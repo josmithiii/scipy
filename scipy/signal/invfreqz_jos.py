@@ -26,8 +26,8 @@ from scipy.linalg import toeplitz, solve, norm
 from scipy.signal import freqz
 from spectrum_utilities_jos import append_flip_conjugate
 from filter_utilities_jos import check_roots_stability
-from filter_plot_utilities_jos import zplane
-from spectrum_plot_utilities_jos import plot_spectrum_overlay
+from filter_plot_utilities_jos import plot_filter_analysis #, zplane
+# from spectrum_plot_utilities_jos import plot_spectrum_overlay
 from typing import Literal
 
 def invfreqz(
@@ -402,8 +402,13 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
 
         # Compute the norm of the change in coefficients
         if debug:
-            freqz(new_b, new_a)
-            zplane(new_b, new_a, f"Pole-Zero Plot, Iteration {iterations}")
+            # freqz(new_b, new_a)
+            # zplane(new_b, new_a, title)
+            title = f"Steiglitz-McBride Iteration {iterations}"
+            error_freq_resp = plot_filter_analysis(H, 1, new_b, new_a, w, title,
+                                                   show_plot=True, log_freq=True)
+            print(f"norm(frequency_response_error) = {error_freq_resp}")
+
         norm_change = norm(new_a - current_a) + norm(new_b - current_b)
         if debug or verbose:
             print(f"norm_change in a at iteration {iterations}: {norm_change}")
@@ -443,13 +448,16 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
         H_local = H * Ai
         U_local = U * Ai
 
-        if debug or verbose:
-            _, Hh = freqz(new_b, new_a, worN=w)
-            title = f"Steiglitz-McBride Iteration {iterations}"
-            err_freq_resp = plot_spectrum_overlay(H, Hh, w / np.pi, title, "Desired",
-                                                  f"Iteration {iterations}",
-                                                  log_freq=False)
-            print(f"{title}: norm(frequency_response_err) = {err_freq_resp}")
+        if debug:
+            title = f"Steiglitz-McBride Iteration FINAL, after {iterations} iterations"
+            error_freq_resp = plot_filter_analysis(H, 1, new_b, new_a, w, title,
+                                                   show_plot=True, log_freq=True)
+            # _, Hh = freqz(new_b, new_a, worN=w)
+            # title = f"Steiglitz-McBride Iteration {iterations}"
+            # error_freq_resp = plot_spectrum_overlay(H, Hh, w / np.pi, title, "
+            # f"Desired, Iteration {iterations}",
+            # log_freq=False)
+            print(f"{title}: norm(frequency_response_err) = {error_freq_resp}")
 
     return new_b, new_a
 

@@ -160,21 +160,21 @@ def plot_filter_analysis(b_orig, a_orig, b_est, a_est, w, title,
     
     # Frequency response plots
     n_spec = len(w)
-    wo, h_orig, have_truth = get_freq_response(b_orig, a_orig, n_spec)
-    we, h_est = freqz(b_est, a_est, n_spec)
+    wo, H_orig, have_truth = get_freq_response(b_orig, a_orig, n_spec)
+    we, H_est = freqz(b_est, a_est, n_spec)
 
     # Magnitude Response
     ax1 = fig.add_subplot(221)
     min_db = -80
-    h_orig_db = 20 * np.log10(np.maximum(np.abs(h_orig), 10**(min_db/20)))
-    h_est_db = 20 * np.log10(np.maximum(np.abs(h_est), 10**(min_db/20)))
+    H_orig_db = 20 * np.log10(np.maximum(np.abs(H_orig), 10**(min_db/20)))
+    H_est_db = 20 * np.log10(np.maximum(np.abs(H_est), 10**(min_db/20)))
     
     if log_freq:
-        ax1.semilogx(w, h_orig_db, 'b', label='Original')
-        ax1.semilogx(w, h_est_db, 'r--', label='Estimated')
+        ax1.semilogx(w, H_orig_db, 'b', label='Original')
+        ax1.semilogx(w, H_est_db, 'r--', label='Estimated')
     else:
-        ax1.plot(w, h_orig_db, 'b', label='Original')
-        ax1.plot(w, h_est_db, 'r--', label='Estimated')
+        ax1.plot(w, H_orig_db, 'b', label='Original')
+        ax1.plot(w, H_est_db, 'r--', label='Estimated')
     
     ax1.set_title(f'{title} - Magnitude Response')
     ax1.set_ylabel('Magnitude [dB]')
@@ -184,11 +184,11 @@ def plot_filter_analysis(b_orig, a_orig, b_est, a_est, w, title,
     # Phase Response
     ax2 = fig.add_subplot(223)
     if log_freq:
-        ax2.semilogx(w, np.unwrap(np.angle(h_orig)), 'b', label='Original')
-        ax2.semilogx(w, np.unwrap(np.angle(h_est)), 'r--', label='Estimated')
+        ax2.semilogx(w, np.unwrap(np.angle(H_orig)), 'b', label='Original')
+        ax2.semilogx(w, np.unwrap(np.angle(H_est)), 'r--', label='Estimated')
     else:
-        ax2.plot(w, np.unwrap(np.angle(h_orig)), 'b', label='Original')
-        ax2.plot(w, np.unwrap(np.angle(h_est)), 'r--', label='Estimated')
+        ax2.plot(w, np.unwrap(np.angle(H_orig)), 'b', label='Original')
+        ax2.plot(w, np.unwrap(np.angle(H_est)), 'r--', label='Estimated')
     
     ax2.set_title(f'{title} - Phase Response')
     ax2.set_ylabel('Phase [rad]')
@@ -239,7 +239,8 @@ def plot_filter_analysis(b_orig, a_orig, b_est, a_est, w, title,
     if show_plot:
         plt.show()
     
-    return fig
+    error_freq_resp = norm(H_orig - H_est)
+    return error_freq_resp
 
 # Example usage
 if __name__ == "__main__":

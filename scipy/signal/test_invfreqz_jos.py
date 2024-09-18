@@ -24,7 +24,7 @@ import numpy as np
 from scipy.signal import butter, cheby1, freqz
 
 from spectrum_plot_utilities_jos import dB, plot_mag_spectrum
-from spectrum_utilities_jos import min_phase_half_spectrum, append_flip_conjugate
+from spectrum_utilities_jos import min_phase_half_spectrum # , append_flip_conjugate
 from filter_test_utilities_jos import test_invfreqz
 
 # pytest --cache-clear
@@ -296,8 +296,12 @@ def model_matched_rolloff(power, test_num, title):
     plot_mag_spectrum(dB(rolloff_mp),
                       title=f"{int(power)}-pole magnitude frequency response",
                       mag_units='dB')
-    b_rolloff = np.fft.ifft(append_flip_conjugate(rolloff_mp))
-    a_rolloff = np.ones(1)
+    # previous hack:
+    # rolloff_mp_lin_whole = append_flip_conjugate(rolloff_mp_lin_half)
+    # b_rolloff = np.fft.ifft(rolloff_mp_lin_whole)
+    # new hack:
+    b_rolloff = rolloff_mp
+    a_rolloff = 1 # np.ones(1)
     order = int(power) # exact match possible
     n_b = order
     n_a = order

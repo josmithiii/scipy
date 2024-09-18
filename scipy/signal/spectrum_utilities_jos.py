@@ -47,7 +47,6 @@ def min_phase_spectrum(spec_lin_whole, n_fft, debug=False):
                           title="DB Magnitude Spectrum Before Upsampling")
         # spec_db_whole_upsampled = resample(spec_db_whole, n_fft, domain='freq')
         print("*** USING SIMPLE LINEAR-INTERPOLATION FOR UPSAMPLING ***")
-    # breakpoint()
     n_spec_0 = n_fft_0 // 2 + 1 # dc to fs/2 inclusive
     spec_db_half = spec_db_whole[ : n_spec_0 ]
     upsampling_factor = n_fft // n_fft_0
