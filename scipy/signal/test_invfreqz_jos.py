@@ -269,7 +269,7 @@ if test_num == 23 or test_num == 0:
     total_error += test_invfreqz(H_bs_mp_fro, 1, M_hc, N_hc, n_spec_hc, label)
 
 
-# ---------------------------- Rolloff Filter Designs ----------------------------------
+# ---------------------------- Rolloff Filter Designs (RFD) ---------------------------
 def self_convolve(arr, p):
     if not isinstance(p, (int | float)):
         raise TypeError("p must be a number")
@@ -287,8 +287,8 @@ def self_convolve(arr, p):
 def model_matched_rolloff(power, test_num, title):
     print("---------------------------------------------------------------------------")
     assert power.is_integer() and power > 0, f"{power=} must be a positive integer"
-    n_freq = 1024
-    wT = np.linspace(0, np.pi, n_freq+1)
+    n_spec = 1025 # fft_size // 2 + 1
+    wT = np.linspace(0, np.pi, n_spec)
     pole = 0.999
     rolloff_denom = self_convolve([1, -pole], power)
     print(f"{rolloff_denom=}")
@@ -301,9 +301,9 @@ def model_matched_rolloff(power, test_num, title):
     order = int(power) # exact match possible
     n_b = order
     n_a = order
-    label = f"{test_num}: {title} filter, order {order}, n_freq {n_freq}"
+    label = f"{test_num}: {title} filter, order {order}, n_spec {n_spec}"
     error = test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
-                                 n_freq, label, log_freq=True)
+                                 n_spec, label, log_freq=True)
     return error
 
 if test_num == 30 or test_num == 0:
@@ -322,37 +322,40 @@ if test_num == 32 or test_num == 0:
     power = 3.0 # model-matched case
     total_error += model_matched_rolloff(power, test_num, title)
 
-def model_incomplete_rolloff(power, test_num, title=None, n_freq=1024):
+def model_incomplete_rolloff(power, test_num, title=None, n_spec=1025):
     print("--------------------------------------------------------------------------------")
     if title is None:
         title = f"1/f^{power} rolloff"
 
     # Create desired magnitude spectrum, from dc to fs/2 inclusive:
-    indices = 1 + np.arange( n_freq )
+    indices = 1 + np.arange( n_spec-1 )
     rolloff_lin_half = np.power( indices, -power )
     rolloff_lin_half = np.concatenate(([rolloff_lin_half[0]],
                                        rolloff_lin_half)) # [1, 1/(n+1)^p], n=0,1,...
 
     # plot it:
-    wT = np.linspace(0, np.pi, n_freq+1)
+    wT = np.linspace(0, np.pi, n_spec)
     rolloff_db_half = dB(rolloff_lin_half)
     plot_mag_spectrum(rolloff_db_half, wT=wT,
                       title=f"{title} magnitude frequency response, "
                       "pre-interpolation",
                       mag_units='dB')
-    n_fft = 4 * n_freq # for spectral interpolation
+    n_fft = 4 * (n_spec-1) # for spectral interpolation
     rolloff_mp_lin_half = min_phase_half_spectrum(rolloff_lin_half,
                                                   n_fft=n_fft) #, half=False)
-    rolloff_mp_lin_whole = append_flip_conjugate(rolloff_mp_lin_half)
-    b_rolloff = np.fft.ifft(rolloff_mp_lin_whole)
+    # previous hack:
+    # rolloff_mp_lin_whole = append_flip_conjugate(rolloff_mp_lin_half)
+    # b_rolloff = np.fft.ifft(rolloff_mp_lin_whole)
+    # new hack:
+    b_rolloff = rolloff_mp_lin_half    
     a_rolloff = 1 # np.ones(1)
     n_b = 4
     n_a = 4
-    label = f"{test_num}: 1/f^{power} rolloff filter, {n_a=} {n_b=}, n_freq {n_freq}"
+    label = f"{test_num}: 1/f^{power} rolloff filter, {n_a=} {n_b=}, n_spec {n_spec}"
     error1 = test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
-                          n_freq, label, log_freq=True)
+                          n_spec, label, log_freq=True)
     error2 = test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
-                           n_freq, label, log_freq=True, n_iter=5)
+                           n_spec, label, log_freq=True, n_iter=5)
     print(f"---\nEquation-Error norm = {error1}")
     print(f"Output-Error norm = {error2}")
     return error1 + error2

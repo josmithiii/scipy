@@ -22,7 +22,7 @@ from scipy.linalg import norm
 # utility.
 def get_freq_response(b, a, n_spec):
     have_truth = True
-    if len(b) == n_spec and np.isscalar(a) and a == 1:
+    if (len(b) == n_spec or len(b) == 2*(n_spec-1)) and np.isscalar(a) and a == 1:
         print("get_freq_response: Assuming b is the DESIRED SPECTRUM")
         have_truth = False
         
@@ -198,7 +198,6 @@ def plot_filter_analysis(b_orig, a_orig, b_est, a_est, w, title,
     
     # Pole-Zero plots
     def plot_pz(b, a, ax, label):
-        breakpoint()
         p = np.zeros(1) if np.isscalar(a) else np.roots(a)
             # Actually there are len(b)-1) zeros, but let's not plot them all
         z = np.roots(b)

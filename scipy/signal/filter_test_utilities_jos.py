@@ -70,7 +70,6 @@ def test_eqnerr(b, a, n_bh, n_ah, n_spec, title, log_freq=False, debug=False):
         print("Total Coefficient Error:")
         error_coeffs = norm(a-ah) + norm(b-bh)
         print(f"norm(a-ah) + norm(b-ba) = {error_coeffs}")
-    breakpoint()
     # fig =
     plot_filter_analysis(b, a, bh, ah, w, title, show_plot=True, log_freq=log_freq)
     error_freq_resp = plot_frequency_response_fit(b, a, bh, ah, w, title,
