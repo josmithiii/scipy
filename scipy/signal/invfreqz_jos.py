@@ -30,6 +30,7 @@ from filter_plot_utilities_jos import plot_filter_analysis #, zplane
 # from spectrum_plot_utilities_jos import plot_spectrum_overlay
 from typing import Literal
 
+# [B, A] = invfreqz(H, n_B, n_A, U, Wt, 
 def invfreqz(
     H: np.ndarray,
     n_zeros: int,
@@ -55,7 +56,8 @@ def invfreqz(
                    including dc and pi, with no negative frequencies.
         n_zeros (int): Number of zeros in the filter.
         n_poles (int): Number of poles in the filter.
-        U (array, opt): Input frequency response (can be used for weighting).
+        U (array, opt): Input frequency response (equation-error weighting).
+        weight (array, opt): output-error weigthing function.
         verbose (bool): Enables plotting and additional print statements.
         debug (bool): Enables plotting and additional print statements.
         n_iter (int, opt): Max number of iterations to use in method method_iter.
