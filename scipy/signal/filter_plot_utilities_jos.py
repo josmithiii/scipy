@@ -38,6 +38,8 @@ def get_freq_response(b, a, n_spec):
     return w2, H, have_truth
 
 
+# def plot_frequency_response(b, a, w, title):
+
 def plot_frequency_response_fit(b_orig, a_orig, b_est, a_est, w, title,
                                 show_plot=False, log_freq=False):
     """Plot frequency-response fit of original and estimated filters."""
@@ -100,7 +102,22 @@ def plot_frequency_response_fit(b_orig, a_orig, b_est, a_est, w, title,
     return norm_of_difference
 
 
-def zplane(b, a, title="Pole-Zero Plot"):
+def splane(b, a, title="Pole-Zero Plot in the s Plane"):
+    # Plotting the Poles and Zeros in the s-plane
+    plt.figure(figsize=(8, 6))
+    s_poles = np.roots(a)
+    s_zeros = np.roots(b)
+    plt.plot(np.real(s_poles), np.imag(s_poles), 'bx', label='Poles')
+    plt.plot(np.real(s_zeros), np.imag(s_zeros), 'ro', label='Zeros')
+    plt.title(title)
+    plt.xlabel('Real Part')
+    plt.ylabel('Imaginary Part')
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+def zplane(b, a, title="Pole-Zero Plot in the z Plane"):
     """
     Plot the complex z-plane given a transfer function.
 

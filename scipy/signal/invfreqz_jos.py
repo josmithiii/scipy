@@ -19,6 +19,7 @@ debugging the result on a number of simple tests.
 The comments were also improved and extended.
 
 @author: josmithiii@github
+@license: BSD 3-Clause "New" or "Revised" License: https://github.com/scipy/scipy/blob/main/LICENSE.txt
 
 """
 import numpy as np
