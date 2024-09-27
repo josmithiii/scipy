@@ -35,24 +35,28 @@ from filter_test_utilities_jos import test_invfreqz
 
 if len(sys.argv) == 2:
     try:
-        test_num = int(sys.argv[1])
-        print(f"Test {test_num}:")
+        test_todo = int(sys.argv[1])
+        print(f"Test {test_todo}:" if test_todo > 0 else "Doing all tests . . .")
     except ValueError:
         print("Please provide a valid integer n = test number, or 0 to run all tests")
         exit()
 else:
-    test_num = 0
+    test_todo = 0
 
 total_error = 0
 
-if test_num == 1 or test_num == 0:
+test_num = 1
+
+if test_todo == test_num or test_todo == 0:
     order = 1
     n_spec = 9 # dc thru pi, inclusive, power of 2 plus 1
     b_butter_1, a_butter_1 = butter(order, 0.25, btype='low', analog=False)
-    label = f"{test_num}: Butterworth lowpass filter, order {order}, n_spec {n_spec}"
+    label = f"Test {test_num}: Butterworth lowpass filter, order {order}, "
+    f"n_spec {n_spec}"
     total_error += test_invfreqz(b_butter_1, a_butter_1, order, order, n_spec, label)
 
-if test_num == 2 or test_num == 0:
+test_num = 2
+if test_todo == test_num or test_todo == 0:
     order = 2
     n_spec = 17
     b_butter_2, a_butter_2 = butter(order, 0.25, btype='low', analog=False)
@@ -68,7 +72,8 @@ if test_num == 2 or test_num == 0:
                                  n_spec, label_reduced, n_iter=5)
 
 
-if test_num == 3 or test_num == 0:
+test_num = 3
+if test_todo == test_num or test_todo == 0:
     order = 2
     n_spec = 17
     b_res_2 = np.array([1, 0, -1], dtype=float)
@@ -89,41 +94,47 @@ if test_num == 3 or test_num == 0:
                                  n_spec, label_pn, n_iter=5)
 
 
-if test_num == 4 or test_num == 0:
+test_num = 4
+if test_todo == test_num or test_todo == 0:
     order = 3
     n_spec = 17
     b_butter_3, a_butter_3 = butter(order, 0.25, btype='low', analog=False)
-    label = f"{test_num}: Butterworth lowpass filter, order {order}, n_spec {n_spec}"
+    label = f"Test {test_num}: Butterworth lowpass filter, order {order}, "
+    f"n_spec {n_spec}"
     total_error += test_invfreqz(b_butter_3, a_butter_3, order, order, n_spec, label)
     order = 4
     n_spec = 1025
     b_butter_4, a_butter_4 = butter(order, 0.2, btype='low', analog=False)
-    label = f"{test_num}: Butterworth lowpass filter, order {order}, n_spec {n_spec}"
+    label = f"Test {test_num}: Butterworth lowpass filter, order {order}, "
+    f"n_spec {n_spec}"
     total_error += test_invfreqz(b_butter_4, a_butter_4, order, order, n_spec, label)
 
-if test_num == 5 or test_num == 0:
+test_num = 5
+if test_todo == test_num or test_todo == 0:
     b_path = [1, 2, 3, 2, 3]
     n_b = len(b_path)-1
     a_path = [1, 2, 3, 2, 1, 4]
     n_a = len(a_path)-1 # order
     order = max(n_b, n_a)
     n_spec = 65
-    label = f"{test_num}: Pathological unstable max-phase target,"
+    label = f"Test {test_num}: Pathological unstable max-phase target,"
     f" order {order}, n_spec {n_spec}"
     total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_spec, label)
     total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_spec, label,
                                  n_iter=15, debug=False)
 
-if test_num == 6 or test_num == 0:
+test_num = 6
+if test_todo == test_num or test_todo == 0:
     n_spec = 1025
     proto_order = 6
     order = 2 * proto_order
-    label = f"{test_num}: Chebyshev Type I bandpass filter, order {order},"
+    label = f"Test {test_num}: Chebyshev Type I bandpass filter, order {order},"
     f" n_spec {n_spec}"
     b_cheby, a_cheby = cheby1(proto_order, 1, [0.25, 0.75], btype='band', analog=False)
     total_error += test_invfreqz(b_cheby, a_cheby, order, order, n_spec, label)
 
-if test_num == 7 or test_num == 0:
+test_num = 7
+if test_todo == test_num or test_todo == 0:
     n_spec = 1025
     label = "Custom filter with multiple poles and zeros"
     b_custom = [0.0255, 0.0510, 0.0255]
@@ -136,7 +147,8 @@ n_spec_hc = 513
 M_hc = 5   # Numerator order
 N_hc = 5   # Denominator order
 
-if test_num == 20 or test_num == 0:
+test_num = 20
+if test_todo == test_num or test_todo == 0:
     label = "Ideal Lowpass Filter"
     cutoff_lp = np.pi / 2
     H_lp = np.zeros(n_spec_hc)
@@ -166,7 +178,8 @@ if test_num == 20 or test_num == 0:
     total_error += test_invfreqz(H_lp_mp_fro, 1, M_hc, N_hc, n_spec_hc, label)
     
 
-if test_num == 21 or test_num == 0:
+test_num = 21
+if test_todo == test_num or test_todo == 0:
     label = "Ideal Highpass Filter"
     cutoff_hp = np.pi / 2
     H_hp = np.ones(n_spec_hc)
@@ -203,7 +216,8 @@ if test_num == 21 or test_num == 0:
     total_error += test_invfreqz(H_hp_mp_fro, 1, M_hc, N_hc, n_spec_hc, label)
 
 
-if test_num == 22 or test_num == 0:
+test_num = 22
+if test_todo == test_num or test_todo == 0:
     label = "Test 22: Ideal Band-pass Filter"
     band_start = np.pi / 4
     band_end = 3 * np.pi / 4
@@ -232,7 +246,8 @@ if test_num == 22 or test_num == 0:
     H_bp_mp_fro = min_phase_half_spectrum(H_bp_fro, 4 * (n_spec_hc-1), debug=False)
     total_error += test_invfreqz(H_bp_mp_fro, 1, M_hc, N_hc, n_spec_hc, label)
 
-if test_num == 23 or test_num == 0:
+test_num = 23
+if test_todo == test_num or test_todo == 0:
     label = "Test 23: Ideal Band-stop Filter"
     band_start = np.pi / 4
     band_end = 3 * np.pi / 4
@@ -284,7 +299,7 @@ def self_convolve(arr, p):
         result = np.convolve(result, arr, mode='full')
     return result
 
-def model_matched_rolloff(power, test_num, title):
+def model_matched_rolloff(power, test_todo, title):
     print("---------------------------------------------------------------------------")
     assert power.is_integer() and power > 0, f"{power=} must be a positive integer"
     n_spec = 1025 # fft_size // 2 + 1
@@ -306,28 +321,31 @@ def model_matched_rolloff(power, test_num, title):
     order = int(power) # exact match possible
     n_b = order
     n_a = order
-    label = f"{test_num}: {title} filter, order {order}, n_spec {n_spec}"
+    label = f"Test {test_num}: {title} filter, order {order}, n_spec {n_spec}"
     error = test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
                                  n_spec, label, log_freq=True)
     return error
 
-if test_num == 30 or test_num == 0:
+test_num = 30
+if test_todo == test_num or test_todo == 0:
     title = "1/f rolloff"
     print(title)
     power = 1.0 # model-matched case
-    total_error += model_matched_rolloff(power, test_num, title)
+    total_error += model_matched_rolloff(power, test_todo, title)
 
-if test_num == 31 or test_num == 0:
+test_num = 31
+if test_todo == test_num or test_todo == 0:
     title = "1/f^2 rolloff"
     power = 2.0 # model-matched case
-    total_error += model_matched_rolloff(power, test_num, title)
+    total_error += model_matched_rolloff(power, test_todo, title)
 
-if test_num == 32 or test_num == 0:
+test_num = 32
+if test_todo == test_num or test_todo == 0:
     title = "1/f^3 rolloff"
     power = 3.0 # model-matched case
-    total_error += model_matched_rolloff(power, test_num, title)
+    total_error += model_matched_rolloff(power, test_todo, title)
 
-def model_incomplete_rolloff(power, test_num, title=None, n_spec=1025):
+def model_incomplete_rolloff(power, test_todo, title=None, n_spec=1025):
     print("--------------------------------------------------------------------------------")
     if title is None:
         title = f"1/f^{power} rolloff"
@@ -356,7 +374,8 @@ def model_incomplete_rolloff(power, test_num, title=None, n_spec=1025):
     a_rolloff = 1 # np.ones(1)
     n_b = 4
     n_a = 4
-    label = f"{test_num}: 1/f^{power} rolloff filter, {n_a=} {n_b=}, n_spec {n_spec}"
+    label = f"Test {test_num}: 1/f^{power} rolloff filter, {n_a=} {n_b=}, "
+    f"n_spec {n_spec}"
     error1 = test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
                           n_spec, label, log_freq=True)
     error2 = test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
@@ -365,17 +384,19 @@ def model_incomplete_rolloff(power, test_num, title=None, n_spec=1025):
     print(f"Output-Error norm = {error2}")
     return error1 + error2
 
-if test_num == 33 or test_num == 0:
+test_num = 33
+if test_todo == test_num or test_todo == 0:
     power = 0.5
     total_error += model_incomplete_rolloff(power, test_num)
 
-if test_num == 34 or test_num == 0:
+test_num = 34
+if test_todo == test_num or test_todo == 0:
     power = 1.5
     total_error += model_incomplete_rolloff(power, test_num)
 
 # -------------------------------------------------------------------------------
 
-if test_num == 0:
-    print("--------------------------------------------------------------------------------")
+if test_todo == 0:
+    print("-------------------------------------------------------------------------")
     this_file = os.path.basename(__file__)
     print(f"{this_file}:\n Sum of all test errors is {total_error}")

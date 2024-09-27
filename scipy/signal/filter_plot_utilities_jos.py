@@ -264,6 +264,51 @@ def plot_filter_analysis(b_orig, a_orig, b_est, a_est, w, title,
     if show_plot:
         plt.show()
     
+    # Replot frequency responses (no pole-zero plots)
+    # over both linear and log frequencies
+
+    if log_freq: # but skip this if log_freq not chosen
+
+        fig = plt.figure(figsize=(18, 10))
+
+        ax11 = fig.add_subplot(221)
+        ax11.semilogx(w, H_orig_db, 'b', label='Original')
+        ax11.semilogx(w, H_est_db, 'r--', label='Estimated')
+        ax11.set_ylabel('Magnitude [dB]')
+        ax11.legend()
+        ax11.grid(True)
+        ax11.set_title(f'{title}')
+
+        ax12 = fig.add_subplot(222)
+        ax12.plot(w, H_orig_db, 'b', label='Original')
+        ax12.plot(w, H_est_db, 'r--', label='Estimated')
+        ax12.set_ylabel('Magnitude [dB]')
+        ax12.legend()
+        ax12.grid(True)
+        ax12.set_title(f'{title}')
+
+        ax21 = fig.add_subplot(223)
+        ax21.semilogx(w, p_orig, 'b',   label='Original')
+        ax21.semilogx(w, p_est,  'r--', label='Estimated')
+        ax21.set_ylabel('Phase [rad]')
+        ax21.legend()
+        ax21.grid(True)
+
+        ax22 = fig.add_subplot(224)
+        ax22.plot(w, p_orig, 'b',   label='Original')
+        ax22.plot(w, p_est,  'r--', label='Estimated')
+        ax22.set_ylabel('Phase [rad]')
+        ax22.legend()
+        ax22.grid(True)
+
+        ax11.set_xlabel('Frequency [rad/sample]')
+        ax12.set_xlabel('Frequency [rad/sample]')
+        ax21.set_xlabel('Frequency [rad/sample]')
+        ax22.set_xlabel('Frequency [rad/sample]')
+
+        if show_plot:
+            plt.show()
+
     error_freq_resp = norm(H_orig - H_est)
     return error_freq_resp
 
