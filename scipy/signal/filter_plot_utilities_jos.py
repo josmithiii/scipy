@@ -178,7 +178,7 @@ def plot_filter_analysis(b_orig, a_orig, b_est, a_est, w, title,
     # Frequency response plots
     n_spec = len(w)
     wo, H_orig, have_truth = get_freq_response(b_orig, a_orig, n_spec)
-    we, H_est = freqz(b_est, a_est, n_spec)
+    we, H_est = freqz(b_est, a_est, worN=wo)
 
     # Magnitude Response
     ax1 = fig.add_subplot(221)
@@ -199,13 +199,21 @@ def plot_filter_analysis(b_orig, a_orig, b_est, a_est, w, title,
     ax1.grid(True)
     
     # Phase Response
+    p_orig = np.unwrap(np.angle(H_orig))
+    mask_orig = H_orig_db <= min_db
+    p_orig[mask_orig] = 0
+
+    p_est = np.unwrap(np.angle(H_est))
+    mask_est = H_est_db <= min_db
+    p_est[mask_est] = 0
+
     ax2 = fig.add_subplot(223)
     if log_freq:
-        ax2.semilogx(w, np.unwrap(np.angle(H_orig)), 'b', label='Original')
-        ax2.semilogx(w, np.unwrap(np.angle(H_est)), 'r--', label='Estimated')
+        ax2.semilogx(w, p_orig, 'b',   label='Original')
+        ax2.semilogx(w, p_est,  'r--', label='Estimated')
     else:
-        ax2.plot(w, np.unwrap(np.angle(H_orig)), 'b', label='Original')
-        ax2.plot(w, np.unwrap(np.angle(H_est)), 'r--', label='Estimated')
+        ax2.plot(w, p_orig, 'b',   label='Original')
+        ax2.plot(w, p_est,  'r--', label='Estimated')
     
     ax2.set_title(f'{title} - Phase Response')
     ax2.set_ylabel('Phase [rad]')

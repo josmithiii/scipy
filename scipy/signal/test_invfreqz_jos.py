@@ -47,59 +47,59 @@ total_error = 0
 
 if test_num == 1 or test_num == 0:
     order = 1
-    n_freqs = 8
+    n_spec = 9 # dc thru pi, inclusive, power of 2 plus 1
     b_butter_1, a_butter_1 = butter(order, 0.25, btype='low', analog=False)
-    label = f"{test_num}: Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
-    total_error += test_invfreqz(b_butter_1, a_butter_1, order, order, n_freqs+1, label)
+    label = f"{test_num}: Butterworth lowpass filter, order {order}, n_spec {n_spec}"
+    total_error += test_invfreqz(b_butter_1, a_butter_1, order, order, n_spec, label)
 
 if test_num == 2 or test_num == 0:
     order = 2
-    n_freqs = 16
+    n_spec = 17
     b_butter_2, a_butter_2 = butter(order, 0.25, btype='low', analog=False)
-    label_complete = f"Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
-    total_error += test_invfreqz(b_butter_2, a_butter_2, order, order, n_freqs+1,
+    label_complete = f"Butterworth lowpass filter, order {order}, n_spec {n_spec}"
+    total_error += test_invfreqz(b_butter_2, a_butter_2, order, order, n_spec,
                                  label_complete)
     order_reduced = order - 1
     label_reduced = "Reduced-Order Butterworth lowpass, "
-    f"order {order_reduced}, n_freqs {n_freqs}"
+    f"order {order_reduced}, n_spec {n_spec}"
     total_error += test_invfreqz(b_butter_2, a_butter_2, order_reduced, order_reduced,
-                                 n_freqs+1, label_reduced)
+                                 n_spec, label_reduced)
     total_error += test_invfreqz(b_butter_2, a_butter_2, order_reduced, order_reduced,
-                                 n_freqs+1, label_reduced, n_iter=5)
+                                 n_spec, label_reduced, n_iter=5)
 
 
 if test_num == 3 or test_num == 0:
     order = 2
-    n_freqs = 16
+    n_spec = 17
     b_res_2 = np.array([1, 0, -1], dtype=float)
     R = 0.9
     a_res_2 = np.array([1, 0, R*R], dtype=float)
-    label_res = f"pi/2 resonator, order {order}, n_freqs {n_freqs}"
-    total_error += test_invfreqz(b_res_2, a_res_2, order, order, n_freqs+1, label_res)
+    label_res = f"pi/2 resonator, order {order}, n_spec {n_spec}"
+    total_error += test_invfreqz(b_res_2, a_res_2, order, order, n_spec, label_res)
     total_error += test_invfreqz(b_res_2, a_res_2, order, order,
-                                 n_freqs+1, label_res, n_iter=5)
+                                 n_spec, label_res, n_iter=5)
 
     nl = 0.1 # Add "white noise" floor
     b_respn_2 = b_res_2 + nl * a_res_2
     a_respn_2 = a_res_2
-    label_pn = f"pi/2 resonator plus {nl}, n_freqs {n_freqs}"
+    label_pn = f"pi/2 resonator plus {nl}, n_spec {n_spec}"
     total_error += test_invfreqz(b_respn_2, a_respn_2, order, order,
-                                 n_freqs+1, label_pn)
+                                 n_spec, label_pn)
     total_error += test_invfreqz(b_respn_2, a_respn_2, order, order,
-                                 n_freqs+1, label_pn, n_iter=5)
+                                 n_spec, label_pn, n_iter=5)
 
 
 if test_num == 4 or test_num == 0:
     order = 3
-    n_freqs = 16
+    n_spec = 17
     b_butter_3, a_butter_3 = butter(order, 0.25, btype='low', analog=False)
-    label = f"{test_num}: Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
-    total_error += test_invfreqz(b_butter_3, a_butter_3, order, order, n_freqs+1, label)
+    label = f"{test_num}: Butterworth lowpass filter, order {order}, n_spec {n_spec}"
+    total_error += test_invfreqz(b_butter_3, a_butter_3, order, order, n_spec, label)
     order = 4
-    n_freqs = 1024
+    n_spec = 1025
     b_butter_4, a_butter_4 = butter(order, 0.2, btype='low', analog=False)
-    label = f"{test_num}: Butterworth lowpass filter, order {order}, n_freqs {n_freqs}"
-    total_error += test_invfreqz(b_butter_4, a_butter_4, order, order, n_freqs+1, label)
+    label = f"{test_num}: Butterworth lowpass filter, order {order}, n_spec {n_spec}"
+    total_error += test_invfreqz(b_butter_4, a_butter_4, order, order, n_spec, label)
 
 if test_num == 5 or test_num == 0:
     b_path = [1, 2, 3, 2, 3]
@@ -107,28 +107,28 @@ if test_num == 5 or test_num == 0:
     a_path = [1, 2, 3, 2, 1, 4]
     n_a = len(a_path)-1 # order
     order = max(n_b, n_a)
-    n_freqs = 64
+    n_spec = 65
     label = f"{test_num}: Pathological unstable max-phase target,"
-    f" order {order}, n_freqs {n_freqs}"
-    total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_freqs+1, label)
-    total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_freqs+1, label,
+    f" order {order}, n_spec {n_spec}"
+    total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_spec, label)
+    total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_spec, label,
                                  n_iter=15, debug=False)
 
 if test_num == 6 or test_num == 0:
-    n_freqs = 1024
+    n_spec = 1025
     proto_order = 6
     order = 2 * proto_order
     label = f"{test_num}: Chebyshev Type I bandpass filter, order {order},"
-    f" n_freqs {n_freqs}"
+    f" n_spec {n_spec}"
     b_cheby, a_cheby = cheby1(proto_order, 1, [0.25, 0.75], btype='band', analog=False)
-    total_error += test_invfreqz(b_cheby, a_cheby, order, order, n_freqs+1, label)
+    total_error += test_invfreqz(b_cheby, a_cheby, order, order, n_spec, label)
 
 if test_num == 7 or test_num == 0:
-    n_freqs = 1024
+    n_spec = 1025
     label = "Custom filter with multiple poles and zeros"
     b_custom = [0.0255, 0.0510, 0.0255]
     a_custom = [1.0, -1.3790, 0.5630]
-    total_error += test_invfreqz(b_custom, a_custom, 2, 2, n_freqs+1, label)
+    total_error += test_invfreqz(b_custom, a_custom, 2, 2, n_spec, label)
 
 # ---------------- Hand Crafted Low/High/Band Pass/Stop Filters ------------------------
 

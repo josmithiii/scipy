@@ -46,7 +46,6 @@ def test_invfreqz(b, a, n_bh, n_ah, n_spec, title, log_freq=False,
 
 
 def test_eqnerr(b, a, n_bh, n_ah, n_spec, title, log_freq=False, debug=False):
-
     w, H, have_truth = get_freq_response(b, a, n_spec)
     U = np.ones_like(H)
     maybe_stop()
