@@ -64,16 +64,16 @@ def invfreqz(
         n_iter (int, opt): Max number of iterations to use in method method_iter.
         method: 'equation_error' [default], 'prony', or 'pade_prony' [n_iter=0].
         method_iter: 'gauss_newton' [default] or 'steiglitz_mcbride' [n_iter>0].
+        min_phase (bool, opt): Convert H to minimum-phase first thing. Default is False.
+        stabilize (bool): Reflect any unstable poles inside the unit circle.
+                          [Default is False when n_iter is 0, else True]
 
     The following additional [optional] parameters only pertain to n_iter > 0:
         tol_iter (float, opt): Tolerance on the norm of the coefficients changes
                                at which to halt Steiglitz-McBride iterations.
         b_0 (array, opt): Initial numerator coefficients. [Zeros default]
         a_0 (array, opt): Initial denominator coefficients. Default is [1, zeros].
-        min_phase (bool, opt): Convert H to minimum-phase first thing. Default is False.
         zero_clip (float): Threshold to avoid divide by 0 where needed. [1e-7]
-        stabilize (bool): Reflect any unstable poles inside the unit circle.
-                          [Default is False when n_iter is 0, else True]
         lr0 (float): Initial learning rate. Climbs from here to 1 over n_iter.
                      Setting to 1 to disables this feature.
 
@@ -90,6 +90,9 @@ def invfreqz(
     
     """
 
+    if min_phase:
+        print ('See test_invfreqz_jos.py for working code that creates minimum phase')
+
     if n_iter == 0:
         if method == 'prony':
             print ('return prony here')
@@ -99,8 +102,13 @@ def invfreqz(
             if method != 'equation_error':
                 print(f'*** invfreqz: unknown method "{method}" - '
                       'choosing equation_error')
-            return fast_equation_error_filter_design(H, n_zeros, n_poles, U, omega,
-                                                     debug=debug, verbose=verbose)
+            b,a = fast_equation_error_filter_design(H, n_zeros, n_poles, U, omega,
+                                                       debug=debug, verbose=verbose)
+            if stabilize:
+                a, _, _ = invert_unstable_roots(a)
+                if debug:
+                    print(f"After inverting unstable roots, {a=}")
+            return b,a
     else:
         if method_iter == 'steiglitz_mcbride':
             return fast_steiglitz_mcbride_filter_design(
