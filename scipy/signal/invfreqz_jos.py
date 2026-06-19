@@ -264,6 +264,26 @@ def fast_equation_error_filter_design(
     b = np.concatenate([r_yu[:n_zeros + 1], r_yy[1:n_poles + 1]])
 
     # Solve the system of equations
+    #
+    # NOTE (ill-conditioning, found 2026-06 via the moForte waveguide project):
+    # For near-allpass targets -- e.g. fitting a string loop-filter R(z) whose
+    # magnitude sits just under 1 across the band (mild frequency-dependent
+    # loss) -- the normal-equation block matrix A becomes severely
+    # ill-conditioned: scipy emits
+    #     LinAlgWarning: ill-conditioned matrix ... rcond ~ 1e-18
+    # and `solve` returns coefficients that still fit the magnitude well
+    # (the downstream design is usable) but are not trustworthy to full
+    # precision. This is inherent to the equation-error normal equations when
+    # |H| ~ const and the input weighting U concentrates energy -- A's
+    # spectrum spans many orders of magnitude.
+    #
+    # Before the eventual scipy PR, consider one of:
+    #   - lstsq(A, b) (SVD, graceful on rank-deficiency) instead of solve;
+    #   - Tikhonov/ridge regularization: solve(A + lam*I, b) with small lam;
+    #   - column scaling / equilibration of A before solving.
+    # Not changing behavior here yet -- this is a documented breadcrumb only.
+    # See moForte2/modal/waveguide/Tests/ (the round-trip designer tests that
+    # surface this warning in practice).
     x = solve(A, b)
 
     # Extract the filter coefficients
