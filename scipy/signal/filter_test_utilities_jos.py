@@ -33,6 +33,53 @@ def maybe_stop():
     pass
 
 
+def report_stability(ah, a=None, tol=1e-7):
+    """Stabilize `ah` if needed and print a stability report.
+
+    Shared by test_steiglitz_mcbride below and the invfreqz_jos.py __main__
+    demo (previously copy-pasted in both, which let the same unpack bug be
+    fixed twice).
+
+    Parameters:
+    ah (array): Estimated denominator coefficients to check/stabilize.
+    a (array, optional): True denominator coefficients, printed for reference.
+    tol (float): Radius tolerance for the marginal-stability check.
+
+    Returns:
+    (ah_stable, roots, is_stable): stabilized coefficients, roots after any
+    inversion, and whether `ah` was already stable.
+    """
+    print("--------------------------------------------------------------")
+    print("Stabilize if needed:")
+    ah_stable, roots, is_stable = invert_unstable_roots(ah)
+    print("Filter poles:", roots)
+    print("Filter pole magnitudes:", np.abs(roots))
+    if not is_stable:
+        print("Filter design UNSTABLE!")
+        if a is not None:
+            print("Original polynomial coefficients:", a)
+        print("Stabilized polynomial coefficients:", ah_stable)
+        print("Roots after inversion:", roots)
+    else:
+        print("Filter design is stable")
+
+    num_unstable, num_marginally_stable = check_roots_stability(roots, tol=tol)
+
+    if num_marginally_stable > 0:
+        print(f"""
+        {num_marginally_stable} MARGINALLY UNSTABLE poles
+        (within {tol} of radius 1.0)
+        """)
+
+    if num_unstable > 0:
+        print(f"""
+        *** {num_unstable} UNSTABLE POLES found
+        _after_ calling invert_unstable_roots
+        """)
+
+    return ah_stable, roots, is_stable
+
+
 def test_invfreqz(b, a, n_bh, n_ah, n_spec, title, log_freq=False,
                   n_iter=0, debug=False):
     print("--------------------------------------------------------------------------------")
@@ -103,32 +150,7 @@ def test_steiglitz_mcbride(b, a, n_bh, n_ah, n_spec, title, n_iter=5,
         print("Total Coefficient Error:")
         error_coeffs = norm(a-ah) + norm(b-bh)
         print(f"norm(a-ah) + norm(b-ba) = {error_coeffs}")
-    print("--------------------------------------------------------------")
-    print("Stabilize if needed:")
-    ah_stable, roots, ah_stable = invert_unstable_roots(ah)
-    print("Filter poles:", roots)
-    print("Filter pole magnitudes:", np.abs(roots))
-    if not ah_stable:
-        print("Filter design UNSTABLE!")
-        print("Original polynomial coefficients:", a)
-        print("Stabilized polynomial coefficients:", ah_stable)
-        print("Roots after inversion:", roots)
-    else:
-        print("Filter design is not unstable")
-
-    num_unstable, num_marginally_stable = check_roots_stability(roots,tol=1e-7)
-
-    if num_marginally_stable > 0:
-        print(f"""
-        {num_marginally_stable} MARGINALLY UNSTABLE poles
-        (within 1e-7 of radius 1.0)
-        """)
-
-    if num_unstable > 0:
-        print(f"""
-        *** {num_unstable} UNSTABLE POLES found
-        _after_ calling invert_unstable_roots
-        """)
+    report_stability(ah, a)
 
     error_freq_resp = plot_filter_analysis(b, a, bh, ah, w, title,
                                            show_plot=True, log_freq=log_freq)

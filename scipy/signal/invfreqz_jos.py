@@ -25,8 +25,7 @@ The comments were also improved and extended.
 import numpy as np
 from scipy.linalg import toeplitz, solve, norm
 from scipy.signal import freqz
-from spectrum_utilities_jos import append_flip_conjugate
-from filter_utilities_jos import check_roots_stability
+from spectrum_utilities_jos import append_flip_conjugate, min_phase_half_spectrum
 from filter_plot_utilities_jos import plot_filter_analysis #, zplane
 # from spectrum_plot_utilities_jos import plot_spectrum_overlay
 from typing import Literal
@@ -40,13 +39,14 @@ def invfreqz(
     weight: np.ndarray | None = None,
     omega: np.ndarray | None = None,
     method: Literal['equation_error', 'prony', 'pade_prony'] = 'equation_error',
-    method_iter: Literal['gauss_newton', 'steiglitz_mcbride'] = 'gauss_newton',
-    n_iter: int     | None = 0,
+    method_iter: Literal['gauss_newton', 'steiglitz_mcbride'] = 'steiglitz_mcbride',
+    n_iter: int     = 0,
     tol_iter: float | None = 1e-8,
     b_0: np.ndarray | None = None,
     a_0: np.ndarray | None = None,
+    zero_clip: float | None = None,
     min_phase: bool | None = False,
-    stabilize: bool | None = False,
+    stabilize: bool | None = None,
     lr0: float      | None = 1.0,
     verbose: bool   | None = False,
     debug: bool     | None = False,
@@ -63,7 +63,8 @@ def invfreqz(
         debug (bool): Enables plotting and additional print statements.
         n_iter (int, opt): Max number of iterations to use in method method_iter.
         method: 'equation_error' [default], 'prony', or 'pade_prony' [n_iter=0].
-        method_iter: 'gauss_newton' [default] or 'steiglitz_mcbride' [n_iter>0].
+        method_iter: 'steiglitz_mcbride' [default] or 'gauss_newton' [n_iter>0].
+                     (Only 'steiglitz_mcbride' is currently implemented.)
         min_phase (bool, opt): Convert H to minimum-phase first thing. Default is False.
         stabilize (bool): Reflect any unstable poles inside the unit circle.
                           [Default is False when n_iter is 0, else True]
@@ -73,7 +74,8 @@ def invfreqz(
                                at which to halt Steiglitz-McBride iterations.
         b_0 (array, opt): Initial numerator coefficients. [Zeros default]
         a_0 (array, opt): Initial denominator coefficients. Default is [1, zeros].
-        zero_clip (float): Threshold to avoid divide by 0 where needed. [1e-7]
+        zero_clip (float): NOT YET IMPLEMENTED (must be None). Intended as a
+                           threshold to avoid divide by 0 where needed.
         lr0 (float): Initial learning rate. Climbs from here to 1 over n_iter.
                      Setting to 1 to disables this feature.
 
@@ -90,37 +92,71 @@ def invfreqz(
     
     """
 
+    # ---- Validate all arguments up front, regardless of the branch taken ----
+
+    if not isinstance(n_iter, int) or n_iter < 0:
+        raise ValueError(
+            f"invfreqz: n_iter must be a non-negative int, got {n_iter!r}")
+
+    if method not in ('equation_error', 'prony', 'pade_prony'):
+        raise ValueError(f"invfreqz: unknown method {method!r}")
+    if method_iter not in ('gauss_newton', 'steiglitz_mcbride'):
+        raise ValueError(f"invfreqz: unknown iterative method {method_iter!r}")
+
+    if method in ('prony', 'pade_prony'):
+        raise NotImplementedError(
+            f"invfreqz: method={method!r} is not yet implemented")
+    if n_iter > 0 and method_iter == 'gauss_newton':
+        raise NotImplementedError(
+            "invfreqz: method_iter='gauss_newton' is not yet implemented")
+
+    if weight is not None:
+        raise NotImplementedError(
+            "invfreqz: output-error 'weight' argument is not yet implemented")
+    if zero_clip is not None:
+        raise NotImplementedError(
+            "invfreqz: zero_clip is accepted for API compatibility but is not "
+            "used by any implemented method; pass None")
+    if n_iter > 0 and omega is not None:
+        raise NotImplementedError(
+            "invfreqz: a custom omega grid is not yet supported on the "
+            "iterative (Steiglitz-McBride) path, which uses "
+            "linspace(0, pi, len(H))")
+
     if min_phase:
-        print ('See test_invfreqz_jos.py for working code that creates minimum phase')
+        if omega is not None and omega[0] < 0:
+            raise NotImplementedError(
+                "invfreqz: min_phase=True requires a half-spectrum H "
+                "(omega from dc to pi inclusive); whole-spectrum "
+                "(negative-frequency) input is not supported")
+        n_fft_mp = 4 * (len(H) - 1)
+        try:
+            H = min_phase_half_spectrum(H, n_fft_mp)
+        except ValueError as e:
+            raise ValueError(
+                "invfreqz: min-phase conversion of H failed at the internal "
+                f"FFT size n_fft={n_fft_mp}. Smooth H, or convert it yourself "
+                "via min_phase_half_spectrum(H, n_fft) with a larger n_fft "
+                "and call invfreqz with min_phase=False.") from e
+
+    # Documented default: no stabilization for the direct solve (n_iter == 0),
+    # stabilization on for the iterative methods (n_iter > 0).
+    if stabilize is None:
+        stabilize = n_iter != 0
 
     if n_iter == 0:
-        if method == 'prony':
-            print ('return prony here')
-        elif method == 'pade_prony':
-            print ('return pade_prony here')
-        else:
-            if method != 'equation_error':
-                print(f'*** invfreqz: unknown method "{method}" - '
-                      'choosing equation_error')
-            b,a = fast_equation_error_filter_design(H, n_zeros, n_poles, U, omega,
-                                                       debug=debug, verbose=verbose)
-            if stabilize:
-                a, _, _ = invert_unstable_roots(a)
-                if debug:
-                    print(f"After inverting unstable roots, {a=}")
-            return b,a
+        b, a = fast_equation_error_filter_design(H, n_zeros, n_poles, U, omega)
+        if stabilize:
+            a, _, _ = invert_unstable_roots(a)
+            if debug:
+                print(f"After inverting unstable roots, {a=}")
+        return b, a
     else:
-        if method_iter == 'steiglitz_mcbride':
-            return fast_steiglitz_mcbride_filter_design(
-                H, U, n_zeros, n_poles,
-                n_iter=n_iter, tol_iter=tol_iter, b_0=None, a_0=None,
-                zero_clip=1e-7, stabilize=stabilize, lr0=lr0,
-                verbose=verbose, debug=debug )
-        else:
-            if method_iter != 'gauss_newton':
-                print(f'*** invfreqz: unknown iterative method "{method_iter}" - '
-                      'choosing gauss_newton')
-            print ('return gauss_newton here')
+        return fast_steiglitz_mcbride_filter_design(
+            H, U, n_zeros, n_poles,
+            n_iter=n_iter, tol_iter=tol_iter, b_0=b_0, a_0=a_0,
+            stabilize=stabilize, lr0=lr0,
+            verbose=verbose, debug=debug)
 
 def toeplitz_circulant_window(x, n_window):
     """
@@ -343,7 +379,7 @@ def exp_window(A, r):
 
 def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
                                          tol_iter=1e-8, b_0=None, a_0=None,
-                                         zero_clip=1e-7, stabilize=True,
+                                         stabilize=True,
                                          lr0=1,
                                          debug=True, verbose=True):
     """Frequency-domain Steiglitz-McBride algorithm.
@@ -366,8 +402,6 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
                                   at which to halt Steiglitz-McBride iterations.
     b_0 (array, optional): Initial numerator coefficients. Default is zeros.
     a_0 (array, optional): Initial denominator coefficients. Default is [1, zeros].
-    zero_clip (float): Threshold to avoid divide by zero in frequency response inverse.
-                       Default is 1e-7.
     stabilize (bool): When true, reflect any unstable poles
                       inside the unit circle if they go unstable.
     lr0 (float): learning rate climbs from here to 1
@@ -386,8 +420,10 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
     """
 
     # Initialize filter coefficients
-    current_b = b_0 if b_0 is not None else np.zeros(n_zeros + 1)
-    current_a = a_0 if a_0 is not None else np.hstack((1, np.zeros(n_poles)))
+    current_b = np.asarray(b_0, dtype=float) if b_0 is not None \
+        else np.zeros(n_zeros + 1)
+    current_a = np.asarray(a_0, dtype=float) if a_0 is not None \
+        else np.hstack((1, np.zeros(n_poles)))
     iterations = 0
 
     N = len(H)
@@ -401,26 +437,29 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
     H_local = H.copy()
     U_local = U.copy()
 
+    # Warm start: apply the initial guess as the first 1/A_0 prefilter so the
+    # first equation-error solve benefits from it.  (Do NOT feed b_0/a_0
+    # through the loop as if they were a solve result: with current == new the
+    # convergence test sees norm_change == 0 and returns the initial guess
+    # unchanged, without ever running a design iteration.)
+    if a_0 is not None:
+        _, Ai0 = freqz([1], current_a, worN=w)  # 1 / A_0(z)
+        H_local = H * Ai0
+        U_local = U * Ai0
+
     learning_rate = lr0
     delta_learning_rate = (1.0 - lr0) / n_iter
-
-    initial_coeffs_used = False
 
     while True:
         print(f"\n------- iteration {iterations} -----------")
 
-        if not initial_coeffs_used and b_0 is not None and a_0 is not None:
-            new_b = b_0
-            new_a = a_0
-            initial_coeffs_used = True
-        else:
-            # Perform equation error filter design
-            try:
-                new_b, new_a = fast_equation_error_filter_design(
-                    H_local, n_zeros, n_poles, U=U_local, omega=w)
-            except np.linalg.LinAlgError as e:
-                raise ValueError("Linear algebra error during "
-                                 f"iteration {iterations}: {e}")
+        # Perform equation error filter design
+        try:
+            new_b, new_a = fast_equation_error_filter_design(
+                H_local, n_zeros, n_poles, U=U_local, omega=w)
+        except np.linalg.LinAlgError as e:
+            raise ValueError("Linear algebra error during "
+                             f"iteration {iterations}: {e}")
 
         print(f"{new_b = }")
         print(f"{new_a = }")
@@ -464,12 +503,16 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
         # Compute the inverse frequency response of the current denominator polynomial
         # Ai = clipped_real_array_inverse(A, zero_clip)
         # Compute the inverse frequency response of the current denominator polynomial
+        # Evaluate 1/A on the SAME grid w (dc..pi inclusive) that H and U use.
+        # Passing an integer worN=N would use freqz's endpoint-exclusive grid
+        # linspace(0, pi, N, endpoint=False), misaligning H_local = H * Ai by up
+        # to one bin (worst near Nyquist) and biasing every iteration.
         if learning_rate < 1.0:
             windowed_a = exp_window(current_a, learning_rate)
-            wA, Ai = freqz([1], windowed_a, worN=N)
+            wA, Ai = freqz([1], windowed_a, worN=w)
             learning_rate += delta_learning_rate
         else:
-            wA, Ai = freqz([1], current_a, worN=N)  # 1 / A(z)
+            wA, Ai = freqz([1], current_a, worN=w)  # 1 / A(z)
 
         # if debug:
         #     A = np.reciprocal(Ai)
@@ -550,36 +593,7 @@ if __name__ == "__main__":
         print(f"a-ah = {a-ah}")
         print("Total Error:")
         print(f"norm(a-ah) + norm(b-ba) = {norm(a-ah) + norm(b-bh)}")
-    print("--------------------------------------------------------------")
-    print("Stabilize if needed:")
-    ah_stable, roots, ah_stable = invert_unstable_roots(ah)
-    print("Filter poles:", roots)
-    print("Filter pole magnitudes:", np.abs(roots))
-    if not ah_stable:
-        print("Filter design UNSTABLE!")
-        print("Original polynomial coefficients:", a)
-        print("Stabilized polynomial coefficients:", ah_stable)
-        print("Roots after inversion:", roots)
-    else:
-        print("Filter design is not unstable")
-
-    def check_roots_stability(roots, tol=1e-7):
-        magnitudes = np.abs(roots)
-        num_unstable = np.sum(magnitudes > 1.0 + tol)
-        num_marginally_stable = np.sum((magnitudes >= 1.0 - tol) & \
-                                       (magnitudes <= 1.0 + tol))
-        return num_unstable, num_marginally_stable
-
-    num_unstable, num_marginally_stable = check_roots_stability(roots,tol=1e-7)
-
-    if num_marginally_stable > 0:
-        print(f"""
-        {num_marginally_stable} MARGINALLY UNSTABLE poles
-        (within 1e-7 of radius 1.0)
-        """)
-
-    if num_unstable > 0:
-        print(f"""
-        *** {num_unstable} UNSTABLE POLES found
-        _after_ calling invert_unstable_roots
-        """)
+    # Imported here (not at module top) to avoid a circular import:
+    # filter_test_utilities_jos imports from this module.
+    from filter_test_utilities_jos import report_stability
+    report_stability(ah, a)

@@ -68,8 +68,14 @@ def min_phase_spectrum(spec_lin_whole, n_fft, debug=False):
               f"{cepstrum_aliasing_error_percent:.2f} % of total rms")
     # Check if aliasing error is too high
     if cepstrum_aliasing_error_percent > 1.0:  # arbitrary limit
-        plot_mag_spectrum(spec_db_whole_upsampled, title="Upsampled Log Spectrum")
-        raise ValueError('Increase n_fft and/or smooth Sdb to shorten cepstrum')
+        if debug:  # only plot when asked - never block library callers on a GUI
+            plot_mag_spectrum(spec_db_whole_upsampled,
+                              title="Upsampled Log Spectrum")
+        raise ValueError(
+            f'Cepstral time-aliasing check failed: outer 20% of cepstrum '
+            f'holds {cepstrum_aliasing_error_percent:.2f}% of total rms '
+            f'(limit 1%). Increase n_fft (currently {n_fft}) and/or smooth '
+            f'the magnitude spectrum to shorten the cepstrum.')
 
     # Fold cepstrum to reflect non-min-phase zeros inside unit circle
     cf = np.zeros(n_fft, dtype=complex)
@@ -107,8 +113,8 @@ def min_phase_half_spectrum(spec_lin_half, n_fft, debug=False):
         print(f"min_phase: Warning: length of non-negative-frequency spectrum "
               f"{n_spec=} is not a power of 2 plus 1")
     spec_lin_whole = append_flip_conjugate(np.abs(spec_lin_half), is_magnitude=True)
-    assert n_fft > 2 * (n_spec-1), f"{n_fft=} should be larger than twice "
-    f"spec_lin_half size + 1 = {2 * (n_spec-1)}"
+    assert n_fft > 2 * (n_spec-1), (
+        f"{n_fft=} must exceed 2 * (len(spec_lin_half) - 1) = {2 * (n_spec-1)}")
     mps = min_phase_spectrum(spec_lin_whole, n_fft, debug=debug)
     Smpp = mps[:n_spec] # nonnegative-frequency portion
     return Smpp

@@ -51,8 +51,8 @@ if test_todo == test_num or test_todo == 0:
     order = 1
     n_spec = 9 # dc thru pi, inclusive, power of 2 plus 1
     b_butter_1, a_butter_1 = butter(order, 0.25, btype='low', analog=False)
-    label = f"Test {test_num}: Butterworth lowpass filter, order {order}, "
-    f"n_spec {n_spec}"
+    label = (f"Test {test_num}: Butterworth lowpass filter, order {order}, "
+             f"n_spec {n_spec}")
     total_error += test_invfreqz(b_butter_1, a_butter_1, order, order, n_spec, label)
 
 test_num = 2
@@ -64,8 +64,8 @@ if test_todo == test_num or test_todo == 0:
     total_error += test_invfreqz(b_butter_2, a_butter_2, order, order, n_spec,
                                  label_complete)
     order_reduced = order - 1
-    label_reduced = "Reduced-Order Butterworth lowpass, "
-    f"order {order_reduced}, n_spec {n_spec}"
+    label_reduced = ("Reduced-Order Butterworth lowpass, "
+                     f"order {order_reduced}, n_spec {n_spec}")
     total_error += test_invfreqz(b_butter_2, a_butter_2, order_reduced, order_reduced,
                                  n_spec, label_reduced)
     total_error += test_invfreqz(b_butter_2, a_butter_2, order_reduced, order_reduced,
@@ -99,14 +99,14 @@ if test_todo == test_num or test_todo == 0:
     order = 3
     n_spec = 17
     b_butter_3, a_butter_3 = butter(order, 0.25, btype='low', analog=False)
-    label = f"Test {test_num}: Butterworth lowpass filter, order {order}, "
-    f"n_spec {n_spec}"
+    label = (f"Test {test_num}: Butterworth lowpass filter, order {order}, "
+             f"n_spec {n_spec}")
     total_error += test_invfreqz(b_butter_3, a_butter_3, order, order, n_spec, label)
     order = 4
     n_spec = 1025
     b_butter_4, a_butter_4 = butter(order, 0.2, btype='low', analog=False)
-    label = f"Test {test_num}: Butterworth lowpass filter, order {order}, "
-    f"n_spec {n_spec}"
+    label = (f"Test {test_num}: Butterworth lowpass filter, order {order}, "
+             f"n_spec {n_spec}")
     total_error += test_invfreqz(b_butter_4, a_butter_4, order, order, n_spec, label)
 
 test_num = 5
@@ -117,8 +117,8 @@ if test_todo == test_num or test_todo == 0:
     n_a = len(a_path)-1 # order
     order = max(n_b, n_a)
     n_spec = 65
-    label = f"Test {test_num}: Pathological unstable max-phase target,"
-    f" order {order}, n_spec {n_spec}"
+    label = (f"Test {test_num}: Pathological unstable max-phase target,"
+             f" order {order}, n_spec {n_spec}")
     total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_spec, label)
     total_error += test_invfreqz(b_path, a_path, n_b, n_a, n_spec, label,
                                  n_iter=15, debug=False)
@@ -128,8 +128,8 @@ if test_todo == test_num or test_todo == 0:
     n_spec = 1025
     proto_order = 6
     order = 2 * proto_order
-    label = f"Test {test_num}: Chebyshev Type I bandpass filter, order {order},"
-    f" n_spec {n_spec}"
+    label = (f"Test {test_num}: Chebyshev Type I bandpass filter, order {order},"
+             f" n_spec {n_spec}")
     b_cheby, a_cheby = cheby1(proto_order, 1, [0.25, 0.75], btype='band', analog=False)
     total_error += test_invfreqz(b_cheby, a_cheby, order, order, n_spec, label)
 
@@ -374,8 +374,8 @@ def model_incomplete_rolloff(power, test_todo, title=None, n_spec=1025):
     a_rolloff = 1 # np.ones(1)
     n_b = 4
     n_a = 4
-    label = f"Test {test_num}: 1/f^{power} rolloff filter, {n_a=} {n_b=}, "
-    f"n_spec {n_spec}"
+    label = (f"Test {test_num}: 1/f^{power} rolloff filter, {n_a=} {n_b=}, "
+             f"n_spec {n_spec}")
     error1 = test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
                           n_spec, label, log_freq=True)
     error2 = test_invfreqz(b_rolloff, a_rolloff, n_b, n_a,
