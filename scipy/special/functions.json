@@ -436,12 +436,14 @@
         }
     },
     "gdtrib": {
-        "_cdflib_wrappers.pxd": {
-            "gdtrib": "ddd->d"        }
+        "xsf_wrappers.h": {
+            "xsf_gdtrib": "ddd->d"
+        }
     },
     "gdtrix": {
         "_cdflib_wrappers.pxd": {
-            "gdtrix": "ddd->d"        }
+            "gdtrix": "ddd->d"
+        }
     },
     "huber": {
         "_convex_analysis.pxd": {
@@ -598,13 +600,15 @@
         }
     },
     "ncfdtr": {
-        "_cdflib_wrappers.pxd": {
-            "ncfdtr": "dddd->d"
+        "boost_special_functions.h++": {
+            "ncf_cdf_float": "ffff->f",
+            "ncf_cdf_double": "dddd->d"
         }
     },
     "ncfdtri": {
-        "_cdflib_wrappers.pxd": {
-            "ncfdtri": "dddd->d"
+        "boost_special_functions.h++": {
+            "ncf_ppf_float": "ffff->f",
+            "ncf_ppf_double": "dddd->d"
         }
     },
     "ncfdtridfd": {
@@ -904,18 +908,6 @@
         "boost_special_functions.h++": {
             "ncf_pdf_float": "ffff->f",
             "ncf_pdf_double": "dddd->d"
-        }
-    },
-    "_ncf_cdf": {
-        "boost_special_functions.h++": {
-            "ncf_cdf_float": "ffff->f",
-            "ncf_cdf_double": "dddd->d"
-        }
-    },
-    "_ncf_ppf": {
-        "boost_special_functions.h++": {
-            "ncf_ppf_float": "ffff->f",
-            "ncf_ppf_double": "dddd->d"
         }
     },
     "_ncf_sf": {

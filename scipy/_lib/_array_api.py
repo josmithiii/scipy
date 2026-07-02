@@ -65,11 +65,20 @@ def _compliance_scipy(arrays: list[ArrayLike]) -> list[Array]:
     """
     for i in range(len(arrays)):
         array = arrays[i]
+
+        from scipy.sparse import issparse
+        # this comes from `_util._asarray_validated`
+        if issparse(array):
+            msg = ('Sparse arrays/matrices are not supported by this function. '
+                   'Perhaps one of the `scipy.sparse.linalg` functions '
+                   'would work instead.')
+            raise ValueError(msg)
+
         if isinstance(array, np.ma.MaskedArray):
             raise TypeError("Inputs of type `numpy.ma.MaskedArray` are not supported.")
         elif isinstance(array, np.matrix):
             raise TypeError("Inputs of type `numpy.matrix` are not supported.")
-        if isinstance(array, (np.ndarray, np.generic)):
+        if isinstance(array, np.ndarray | np.generic):
             dtype = array.dtype
             if not (np.issubdtype(dtype, np.number) or np.issubdtype(dtype, np.bool_)):
                 raise TypeError(f"An argument has dtype `{dtype!r}`; "
@@ -271,7 +280,7 @@ def _strict_check(actual, desired, xp, *,
         assert actual.shape == desired.shape, _msg
 
     desired = xp.broadcast_to(desired, actual.shape)
-    return desired
+    return actual, desired
 
 
 def _assert_matching_namespace(actual, desired):
@@ -291,9 +300,13 @@ def xp_assert_equal(actual, desired, *, check_namespace=True, check_dtype=True,
     __tracebackhide__ = True  # Hide traceback for py.test
     if xp is None:
         xp = array_namespace(actual)
-    desired = _strict_check(actual, desired, xp, check_namespace=check_namespace,
-                            check_dtype=check_dtype, check_shape=check_shape,
-                            check_0d=check_0d)
+
+    actual, desired = _strict_check(
+        actual, desired, xp, check_namespace=check_namespace,
+        check_dtype=check_dtype, check_shape=check_shape,
+        check_0d=check_0d
+    )
+
     if is_cupy(xp):
         return xp.testing.assert_array_equal(actual, desired, err_msg=err_msg)
     elif is_torch(xp):
@@ -312,9 +325,12 @@ def xp_assert_close(actual, desired, *, rtol=None, atol=0, check_namespace=True,
     __tracebackhide__ = True  # Hide traceback for py.test
     if xp is None:
         xp = array_namespace(actual)
-    desired = _strict_check(actual, desired, xp, check_namespace=check_namespace,
-                            check_dtype=check_dtype, check_shape=check_shape,
-                            check_0d=check_0d)
+
+    actual, desired = _strict_check(
+        actual, desired, xp,
+        check_namespace=check_namespace, check_dtype=check_dtype,
+        check_shape=check_shape, check_0d=check_0d
+    )
 
     floating = xp.isdtype(actual.dtype, ('real floating', 'complex floating'))
     if rtol is None and floating:
@@ -342,9 +358,13 @@ def xp_assert_less(actual, desired, *, check_namespace=True, check_dtype=True,
     __tracebackhide__ = True  # Hide traceback for py.test
     if xp is None:
         xp = array_namespace(actual)
-    desired = _strict_check(actual, desired, xp, check_namespace=check_namespace,
-                            check_dtype=check_dtype, check_shape=check_shape,
-                            check_0d=check_0d)
+
+    actual, desired = _strict_check(
+        actual, desired, xp, check_namespace=check_namespace,
+        check_dtype=check_dtype, check_shape=check_shape,
+        check_0d=check_0d
+    )
+
     if is_cupy(xp):
         return xp.testing.assert_array_less(actual, desired,
                                             err_msg=err_msg, verbose=verbose)
@@ -561,3 +581,67 @@ def xp_take_along_axis(arr: Array,
         raise NotImplementedError("Array API standard does not define take_along_axis")
     else:
         return xp.take_along_axis(arr, indices, axis)
+
+
+# utility to broadcast arrays and promote to common dtype
+def xp_broadcast_promote(*args, ensure_writeable=False, force_floating=False, xp=None):
+    xp = array_namespace(*args) if xp is None else xp
+
+    args = [(xp.asarray(arg) if arg is not None else arg) for arg in args]
+    args_not_none = [arg for arg in args if arg is not None]
+
+    # determine minimum dtype
+    default_float = xp.asarray(1.).dtype
+    dtypes = [arg.dtype for arg in args_not_none]
+    try:  # follow library's prefered mixed promotion rules
+        dtype = xp.result_type(*dtypes)
+        if force_floating and xp.isdtype(dtype, 'integral'):
+            # If we were to add `default_float` before checking whether the result
+            # type is otherwise integral, we risk promotion from lower float.
+            dtype = xp.result_type(dtype, default_float)
+    except TypeError:  # mixed type promotion isn't defined
+        float_dtypes = [dtype for dtype in dtypes
+                        if not xp.isdtype(dtype, 'integral')]
+        if float_dtypes:
+            dtype = xp.result_type(*float_dtypes, default_float)
+        elif force_floating:
+            dtype = default_float
+        else:
+            dtype = xp.result_type(*dtypes)
+
+    # determine result shape
+    shapes = {arg.shape for arg in args_not_none}
+    shape = np.broadcast_shapes(*shapes) if len(shapes) != 1 else args_not_none[0].shape
+
+    out = []
+    for arg in args:
+        if arg is None:
+            out.append(arg)
+            continue
+
+        # broadcast only if needed
+        # Even if two arguments need broadcasting, this is faster than
+        # `broadcast_arrays`, especially since we've already determined `shape`
+        if arg.shape != shape:
+            arg = xp.broadcast_to(arg, shape)
+
+        # convert dtype/copy only if needed
+        if (arg.dtype != dtype) or ensure_writeable:
+            arg = xp.astype(arg, dtype, copy=True)
+        out.append(arg)
+
+    return out
+
+
+def xp_float_to_complex(arr: Array, xp: ModuleType | None = None) -> Array:
+    xp = array_namespace(arr) if xp is None else xp
+    arr_dtype = arr.dtype
+    # The standard float dtypes are float32 and float64.
+    # Convert float32 to complex64,
+    # and float64 (and non-standard real dtypes) to complex128
+    if xp.isdtype(arr_dtype, xp.float32):
+        arr = xp.astype(arr, xp.complex64)
+    elif xp.isdtype(arr_dtype, 'real floating'):
+        arr = xp.astype(arr, xp.complex128)
+
+    return arr
