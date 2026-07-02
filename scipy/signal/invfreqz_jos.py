@@ -23,7 +23,7 @@ The comments were also improved and extended.
 
 """
 import numpy as np
-from scipy.linalg import toeplitz, solve, norm
+from scipy.linalg import toeplitz, lstsq, norm
 from scipy.signal import freqz
 from spectrum_utilities_jos import append_flip_conjugate, min_phase_half_spectrum
 from filter_plot_utilities_jos import plot_filter_analysis #, zplane
@@ -147,7 +147,9 @@ def invfreqz(
     if n_iter == 0:
         b, a = fast_equation_error_filter_design(H, n_zeros, n_poles, U, omega)
         if stabilize:
-            a, _, _ = invert_unstable_roots(a)
+            a, _, was_stable = invert_unstable_roots(a)
+            if not was_stable:
+                b, a = b / a[0], a / a[0]  # restore a[0] == 1
             if debug:
                 print(f"After inverting unstable roots, {a=}")
         return b, a
@@ -286,6 +288,14 @@ def fast_equation_error_filter_design(
 
     r_yy = np.fft.ifft(np.abs(Y)**2)
 
+    if n_poles == 0:
+        # FIR (all-zero) fit: solve R_uu @ b = r_yu[:n_zeros+1] alone.  (The
+        # block construction below cannot form its zero-size R_yy/R_yu
+        # blocks.)  With U=None this reduces to impulse-response truncation.
+        R_uu = toeplitz_circulant_window(check_real(r_uu), n_zeros + 1)
+        b_fir, *_ = lstsq(R_uu, r_yu[:n_zeros + 1])
+        return check_real(b_fir), np.ones(1)
+
     # Construct Toeplitz matrices
     R_yy = toeplitz_circulant_window(r_yy, n_poles)
     R_uu = toeplitz_circulant_window(r_uu, n_zeros + 1)
@@ -299,28 +309,13 @@ def fast_equation_error_filter_design(
     A = np.block([[R_uu, R_yu], [R_uy, R_yy]])
     b = np.concatenate([r_yu[:n_zeros + 1], r_yy[1:n_poles + 1]])
 
-    # Solve the system of equations
-    #
-    # NOTE (ill-conditioning, found 2026-06 via the moForte waveguide project):
-    # For near-allpass targets -- e.g. fitting a string loop-filter R(z) whose
-    # magnitude sits just under 1 across the band (mild frequency-dependent
-    # loss) -- the normal-equation block matrix A becomes severely
-    # ill-conditioned: scipy emits
-    #     LinAlgWarning: ill-conditioned matrix ... rcond ~ 1e-18
-    # and `solve` returns coefficients that still fit the magnitude well
-    # (the downstream design is usable) but are not trustworthy to full
-    # precision. This is inherent to the equation-error normal equations when
-    # |H| ~ const and the input weighting U concentrates energy -- A's
-    # spectrum spans many orders of magnitude.
-    #
-    # Before the eventual scipy PR, consider one of:
-    #   - lstsq(A, b) (SVD, graceful on rank-deficiency) instead of solve;
-    #   - Tikhonov/ridge regularization: solve(A + lam*I, b) with small lam;
-    #   - column scaling / equilibration of A before solving.
-    # Not changing behavior here yet -- this is a documented breadcrumb only.
-    # See moForte2/modal/waveguide/Tests/ (the round-trip designer tests that
-    # surface this warning in practice).
-    x = solve(A, b)
+    # Solve the system of equations with SVD-based lstsq rather than solve():
+    # for near-allpass targets (|H| ~ const, e.g. the moForte string
+    # loop-filter R(z)) the normal-equation block matrix is severely
+    # ill-conditioned (rcond ~ 1e-18) and plain solve() emits LinAlgWarning
+    # and amplifies noise, while SVD degrades gracefully.  Decision recorded
+    # 2026-07; matches the upstream PR (see TODO_INVFREQZ.md section 2).
+    x, *_ = lstsq(A, b)
 
     # Extract the filter coefficients
     b_coeffs = x[:n_zeros + 1]
@@ -342,14 +337,23 @@ def clipped_real_array_inverse(A, zero_clip=1e-7):
 
 
 def invert_unstable_roots(A):
-    print(f"invert_unstable_roots: input is {A}")
+    """Reflect any roots of A outside the unit circle to their conjugate
+    reciprocals, scaling the result so the magnitude response is unchanged:
+    |A_stable(e^jw)| == |A(e^jw)| for all w (each reflected root r scales the
+    factor magnitude by 1/|r|, so the polynomial is multiplied by prod |r|).
+    Note A_stable is then NOT monic (A_stable[0] = A[0] * prod |r|); when a
+    monic denominator is needed, divide (b, a) through by A_stable[0] to
+    preserve the transfer function's magnitude.
+
+    Returns (A_stable, roots_after_inversion, was_stable)."""
     roots = np.roots(A)
     unstable_mask = np.abs(roots) > 1
     if not np.any(unstable_mask):
         return A, roots, True  # All roots are stable
-    # Invert the unstable roots:
+    # Invert the unstable roots, compensating the gain:
+    gain = np.prod(np.abs(roots[unstable_mask]))
     roots[unstable_mask] = 1 / np.conj(roots[unstable_mask])
-    A_stable = np.poly(roots) # reconstruct the polynomial coefficients
+    A_stable = A[0] * gain * np.poly(roots)  # reconstruct the coefficients
     A_stable = check_real(A_stable)
     return A_stable, roots, False  # Some roots were unstable and inverted
 
@@ -433,8 +437,14 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
     if U is None:
         U = np.ones_like(H)
 
-    # Initialize H_local and U_local with copies of H and U
-    H_local = H.copy()
+    # Steiglitz-McBride prefilters the output signal spectrum Y = H*U and the
+    # input spectrum U by 1/A of the previous iterate.  In the (H, U)
+    # parameterization used by fast_equation_error_filter_design, that means
+    # U_local = U/A with H UNCHANGED, since H = Y'/U' is invariant under
+    # common prefiltering.  (Multiplying H by 1/A as well -- the bug fixed in
+    # the upstream port -- applies 1/A twice to the output side, biasing
+    # every iteration; it made model-complete iterates drift away from the
+    # exact solution.)
     U_local = U.copy()
 
     # Warm start: apply the initial guess as the first 1/A_0 prefilter so the
@@ -444,7 +454,6 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
     # unchanged, without ever running a design iteration.)
     if a_0 is not None:
         _, Ai0 = freqz([1], current_a, worN=w)  # 1 / A_0(z)
-        H_local = H * Ai0
         U_local = U * Ai0
 
     learning_rate = lr0
@@ -456,7 +465,7 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
         # Perform equation error filter design
         try:
             new_b, new_a = fast_equation_error_filter_design(
-                H_local, n_zeros, n_poles, U=U_local, omega=w)
+                H, n_zeros, n_poles, U=U_local, omega=w)
         except np.linalg.LinAlgError as e:
             raise ValueError("Linear algebra error during "
                              f"iteration {iterations}: {e}")
@@ -500,12 +509,10 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
         current_b = new_b
         iterations += 1
 
-        # Compute the inverse frequency response of the current denominator polynomial
-        # Ai = clipped_real_array_inverse(A, zero_clip)
-        # Compute the inverse frequency response of the current denominator polynomial
+        # Compute the inverse frequency response of the current denominator.
         # Evaluate 1/A on the SAME grid w (dc..pi inclusive) that H and U use.
         # Passing an integer worN=N would use freqz's endpoint-exclusive grid
-        # linspace(0, pi, N, endpoint=False), misaligning H_local = H * Ai by up
+        # linspace(0, pi, N, endpoint=False), misaligning the prefilter by up
         # to one bin (worst near Nyquist) and biasing every iteration.
         if learning_rate < 1.0:
             windowed_a = exp_window(current_a, learning_rate)
@@ -518,8 +525,9 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
         #     A = np.reciprocal(Ai)
         #     plot_spectrum_overlay(A, Ai, wA, "A and 1/A", "A", "1/A")
 
-        # Update H_local and U_local using the original H and U and new A inverse:
-        H_local = H * Ai
+        # SM update: prefilter the input spectrum only, always from the
+        # original U (the prefilter is 1/A_current, not cumulative); H stays
+        # unchanged -- see the note above the loop.
         U_local = U * Ai
 
         if debug:
@@ -533,6 +541,10 @@ def fast_steiglitz_mcbride_filter_design(H, U, n_zeros, n_poles, n_iter=5,
             # log_freq=False)
             print(f"{title}: norm(frequency_response_err) = {error_freq_resp}")
 
+    # In-loop stabilization gain-compensates a (non-monic); restore a[0] == 1
+    # without changing the transfer function.
+    if new_a[0] != 1.0:
+        new_b, new_a = new_b / new_a[0], new_a / new_a[0]
     return new_b, new_a
 
 
