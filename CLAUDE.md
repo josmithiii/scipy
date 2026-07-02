@@ -14,8 +14,14 @@ cannot just `import scipy` from a source checkout — it must be built first. Ev
 through the `dev.py` orchestrator, which does an isolated in-tree build under `build/` and
 installs to `build-install/`, then puts that on `sys.path` for you.
 
+> **Note on `doit`:** `dev.py` is SciPy's *own* upstream developer CLI (checked into the repo
+> root). It is built on the PyPI **`doit`** task-runner *package* — unrelated to JOS's `doit`
+> bash scripts, just a name collision. `python dev.py` fails until that package is installed.
+> **For the invfreqz work below you do NOT need any of this** — see that section; it runs
+> against the plain installed scipy, no source build required.
+
 ```bash
-# One-time: install dev tooling (dev.py itself needs `doit`, `pydevtool`, `rich-click`)
+# One-time: install dev tooling (dev.py itself needs the `doit` PyPI package, `pydevtool`, `rich-click`)
 pip install -r requirements/dev.txt        # or: pip install -e '.[dev,test]' (no build isolation)
 
 python dev.py build                        # incremental build (re-run after editing compiled code)
@@ -73,22 +79,32 @@ of a clean squash-merge. They are intended to be absorbed, in final form, into
 `scipy/signal/_filter_design.py`:
 
 - `invfreqz_jos.py` — the `invfreqz()` implementation (the thing being built).
-- `test_invfreqz_jos.py` — a numbered test driver (Tests 1..34+). Run **all** tests or one:
+- `test_invfreqz_jos.py` — a numbered test driver (Tests 1..34+). Run **all** tests or one.
+  It calls `plt.show()` throughout, so run headless with the `Agg` backend to avoid blocking on
+  GUI windows:
   ```bash
-  cd scipy/signal && python test_invfreqz_jos.py       # all tests
-  cd scipy/signal && python test_invfreqz_jos.py 33     # just test 33
+  cd scipy/signal && MPLBACKEND=Agg python test_invfreqz_jos.py       # all tests
+  cd scipy/signal && MPLBACKEND=Agg python test_invfreqz_jos.py 34     # just test 34
   ```
-  Also runnable via `pytest` from the repo root (`cd /w/scipy && pytest --cache-clear`).
+  It accumulates a `total_error` across all tests and prints the sum — there are no pass/fail
+  assertions. Tests 33/34 (model-incomplete `1/f` rolloff) legitimately have large output-error
+  norms (near-allpass ill-conditioning, documented in commit `468c9367a`); the rest are small.
 - Support modules, all `*_jos.py` in `scipy/signal/`: `spectrum_utilities_jos.py`,
   `filter_utilities_jos.py`, `filter_plot_utilities_jos.py`, `filter_test_utilities_jos.py`,
   `spectrum_plot_utilities_jos.py`, `array_utilities_jos.py`.
 
+**How it runs (no source build needed):** these files import scipy's *public* API only
+(`from scipy.signal import freqz`, `scipy.linalg.solve`, …), so they run against **whatever
+scipy is installed in the active env** — JOS's base miniforge env has `scipy 1.15.2`. There is
+**no need to build this source tree** (`dev.py`/`doit`) to run invfreqz. A source build would
+only be relevant for testing unreleased scipy internals, which invfreqz does not use.
+
 **Import gotcha:** these files use *bare* intra-directory imports
 (`from spectrum_utilities_jos import ...`), so they only resolve when `scipy/signal/` is on
-`sys.path` — i.e. run them from inside `scipy/signal/`, or let pytest's prepend-import insert
-that dir. They import the *built* scipy (`from scipy.signal import freqz`), so `python dev.py
-build` must have succeeded first. Other untracked scratch files here (`invfreqz.cpp`,
-`invfreqz.lua`, `dgn.py`, `_filter_design_DIFFS*.py`) are experiments, not part of the build.
+`sys.path` — i.e. run them from inside `scipy/signal/` (which also keeps `import scipy`
+resolving to the *installed* package, not this unbuilt source tree). Other untracked scratch
+files here (`invfreqz.cpp`, `invfreqz.lua`, `dgn.py`, `_filter_design_DIFFS*.py`) are
+experiments, not part of the build.
 
 When the API stabilizes, the merge target is `_filter_design.py` (public re-export in
 `scipy/signal/__init__.py` + `meson.build` — but for scratch `*_jos.py` files, do **not** add
